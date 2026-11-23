@@ -107,13 +107,17 @@ GENOTOX: list[Alert] = [
           "Azo reduction releases aromatic amines."),
     Alert("SA32", "Coumarin / furocoumarin", "[$(O=c1ccc2ccccc2o1),$(c1cc2ccoc2cc1)]", "genotox",
           "Photoactivated or epoxidised to a DNA-reactive species."),
-    Alert("SA33", "Halogenated dibenzodioxin / biphenyl core",
-          "[$(c1ccc2Oc3ccccc3Oc2c1),$(c1ccc(-c2ccccc2)cc1[F,Cl,Br])]", "genotox",
-          "Persistent aryl-hydrocarbon receptor ligand; tumour promoter."),
+    # SA33 (halogenated dibenzodioxin / biphenyl) and SA35 (thiourea /
+    # thioamide) used to sit here. Both were measured against the 691-compound
+    # ISSCAN Ames set and both failed, SA35 at 0 true positives against 10
+    # false (its ten firings are wrong ten times out of ten) and SA33 at 1
+    # against 5. The reason is mechanistic rather than statistical, and the
+    # rationales as written said so: an AhR ligand promotes tumours and a
+    # thiocarbamide inhibits thyroid peroxidase, and neither is DNA-reactive,
+    # so neither belongs in a genotoxicity rulebase. They now live in
+    # NONGENOTOX as NG8 and NG6.
     Alert("SA34", "Alkyl hydroperoxide or peroxide", "[OX2][OX2]", "genotox",
           "Generates oxygen radicals causing oxidative DNA damage."),
-    Alert("SA35", "Thiourea / thioamide", "[NX3][CX3](=[SX1])[NX3,#6]", "genotox",
-          "Oxidised to reactive sulphene/sulphine metabolites."),
     Alert("SA36", "Aromatic sulphonate ester", "[c][SX4](=[OX1])(=[OX1])[OX2][CX4]", "genotox",
           "Direct alkylating agent."),
     Alert("SA37", "Nitrogen or sulphur ylide / diazoketone", "[CX3](=[OX1])[CX2]=[NX2+]=[NX1-]",
@@ -135,20 +139,37 @@ NONGENOTOX: list[Alert] = [
     Alert("NG5", "Perfluoroalkyl acid/sulphonate",
           "[$(C(F)(F)C(F)(F)C(=O)[OX2H,OX1-]),$(C(F)(F)S(=O)(=O)[OX2H,OX1-])]", "nongenotox",
           "Persistent peroxisome proliferator."),
-    Alert("NG6", "Thiocarbamide / imidazole antithyroid motif",
-          "[$([NX3][CX3](=[SX1])[NX3]),$(c1cnc[nH]1)]", "nongenotox",
-          "Thyroid peroxidase inhibition leading to follicular tumours."),
+    # The thiocarbamide arm is widened from [NX3] to [NX3,#6] to take in the
+    # thioamides as well as the thioureas, which is where SA35's coverage
+    # went when it left the genotoxicity set. Thioacetamide and its relatives
+    # are non-genotoxic hepatocarcinogens, so the mechanism is the same one
+    # this alert already describes. There is no experimental set for this
+    # rulebase, so that rests on chemistry rather than on measurement.
+    Alert("NG6", "Thiocarbamide / thioamide / imidazole antithyroid motif",
+          "[$([NX3][CX3](=[SX1])[NX3,#6]),$(c1cnc[nH]1)]", "nongenotox",
+          "Thyroid peroxidase inhibition leading to follicular tumours; "
+          "thioamides are activated to hepatotoxic sulphine metabolites."),
     Alert("NG7", "Long-chain phthalate ester",
           "[CX4][OX2][CX3](=O)c1ccccc1[CX3](=O)[OX2][CX4]", "nongenotox",
           "Hepatic peroxisome proliferation."),
+    Alert("NG8", "Halogenated dibenzodioxin / biphenyl core",
+          "[$(c1ccc2Oc3ccccc3Oc2c1),$(c1ccc(-c2ccccc2)cc1[F,Cl,Br])]",
+          "nongenotox",
+          "Persistent aryl-hydrocarbon receptor ligand; tumour promoter."),
 ]
 
 # --------------------------------------------------------------------------
 # Skin sensitisation — mechanistic protein-binding domains
 # --------------------------------------------------------------------------
 SENSITISATION: list[Alert] = [
-    Alert("SS1", "Michael acceptor", "[CX3]=[CX3][$([CX3]=[OX1]),$([SX4](=O)=O),$([CX2]#[NX1])]",
-          "sensitisation", "Conjugate addition of skin-protein thiol/amine nucleophiles."),
+    Alert("SS1", "Michael acceptor",
+          "[$([CX3]=[CX3][$([CX3]=[OX1]),$([SX4](=O)=O),$([CX2]#[NX1])]),"
+          "$([CX2]#[CX2][$([CX3]=[OX1]),$([SX4](=O)=O),$([CX2]#[NX1])]),"
+          "$([CX3]=[CX3][c;$(c~n)])]",
+          "sensitisation",
+          "Conjugate addition of skin-protein thiol/amine nucleophiles. The "
+          "activated alkynes (the 2-alkynoate esters) and vinyl azines accept "
+          "as readily as the alkenes and were missing."),
     Alert("SS2", "Schiff base former (aldehyde)",
           "[$([CX3H1](=[OX1])[#6]),$([CX3H2]=[OX1]),$([CX3](=[OX1])([#6])[CX4][F,Cl,Br,I])]",
           "sensitisation", "Condenses with lysine amino groups to form an imine."),
@@ -176,14 +197,25 @@ SENSITISATION: list[Alert] = [
           "$(c([F,Cl,Br,I])1cccc1[$([NX3](=O)=O),$([NX3+](=O)[O-])]),"
           "$([F,Cl,Br,I]c1nc([F,Cl,Br,I])nc([F,Cl,Br,I])n1)]",
           "sensitisation", "Nucleophilic aromatic substitution on an activated ring."),
+    # The benzylic-carbon branches were written as
+    #   [CX4;!$(C=O),CX3;!$([CX3]=[OX1])]
+    # which does not mean what it reads as: in SMARTS "," binds tighter than
+    # ";", so that parses as CX4 AND (not-C=O OR CX3) AND not-CX3=O, and the
+    # leading CX4 makes the CX3 alternative unreachable. The alert therefore
+    # matched eugenol, whose benzylic carbon is saturated, and missed
+    # isoeugenol, whose propenyl carbon is not -- although the comment claimed
+    # the family was covered. Each alternative now gets its own $() group.
     Alert("SS6", "Pro-electrophilic phenol (quinone or quinone-methide precursor)",
           "[$(c1cc([OX2H])ccc1[OX2H]),$(c1cccc([OX2H])c1[OX2H]),"
-          "$([OX2H]c1ccc([CX4;!$(C=O),CX3;!$([CX3]=[OX1])])cc1),"
-          "$([OX2H]c1ccccc1[CX4;!$(C=O),CX3;!$([CX3]=[OX1])]),"
-          "$([OX2H]c1ccc([NX3])cc1),$([OX2H]c1ccccc1[NX3])]",
+          "$([OX2H]c1ccc([$([CX4;!$(C=O)]),$([CX3;!$([CX3]=[OX1])])])cc1),"
+          "$([OX2H]c1ccccc1[$([CX4;!$(C=O)]),$([CX3;!$([CX3]=[OX1])])]),"
+          "$([OX2H]c1ccc([NX3])cc1),$([OX2H]c1ccccc1[NX3]),"
+          "$([OX2H]c1cccc2ccccc12),$([OX2H]c1ccc2ccccc2c1),"
+          "$([OX2H]c1c([F,Cl,Br,I])cccc1[F,Cl,Br,I])]",
           "sensitisation",
           "Oxidised in skin to a quinone or quinone methide. This covers the "
-          "eugenol/isoeugenol family, which the catechol pattern alone misses."),
+          "eugenol/isoeugenol family, which the catechol pattern alone misses, "
+          "and the naphthols, which oxidise to naphthoquinones."),
     Alert("SS7", "Epoxide / aziridine", "[OX2,NX3;r3]1[#6;r3][#6;r3]1", "sensitisation",
           "Ring-opening alkylation of protein nucleophiles."),
     Alert("SS8", "Quinone / quinone imine", "[$(O=C1C=CC(=O)C=C1),$(O=C1C=CC(=N)C=C1)]",
@@ -199,6 +231,68 @@ SENSITISATION: list[Alert] = [
     Alert("SS12", "Disulfide or thiuram",
           "[#16X2][#16X2]", "sensitisation",
           "Thiol-disulfide exchange with cysteine residues."),
+
+    # ----------------------------------------------------------------------
+    # Pro- and pre-haptens. Everything above is an electrophile as drawn;
+    # these are not, and become one in the skin -- by oxidation of an alcohol
+    # to an aldehyde, of an alkenylphenol to a quinone methide, of an arene to
+    # an epoxide. They were the largest single group of misses when this set
+    # was compared against Toxtree's, which flags them.
+    # ----------------------------------------------------------------------
+    Alert("SS13", "Alkenyl or allyl phenol / aryl ether",
+          "[$([CX3]=[CX3]c1ccc([OX2])cc1),$([CX3]=[CX3]c1ccccc1[OX2]),"
+          "$([CX3]=[CX3][CX4H2]c1ccc([OX2])cc1),"
+          "$([CX3]=[CX3][CX4H2]c1ccccc1[OX2])]",
+          "sensitisation",
+          "Quinone-methide precursor. The ring oxygen is required: it is what "
+          "makes the benzylic position oxidisable, which is why anethole and "
+          "the isoeugenol ethers sensitise where plain styrene does not."),
+    Alert("SS14", "Allylic or benzylic primary alcohol",
+          "[$([CX3]=[CX3][CX4H2][OX2H]),$(c[CX4H2][OX2H])]", "sensitisation",
+          "Oxidised to the corresponding aldehyde, a Schiff-base former. "
+          "Cinnamic alcohol and geraniol act through their aldehydes."),
+    Alert("SS15", "Polycyclic aromatic hydrocarbon",
+          "c1ccc2c(c1)ccc1ccccc12", "sensitisation",
+          "Oxidised to a diol epoxide or quinone; the same activation that "
+          "makes these genotoxic makes them sensitisers."),
+    Alert("SS16", "Beta-lactam", "[NX3;r4][CX3;r4]=[OX1]", "sensitisation",
+          "Ring strain makes the amide an acylating agent; the penicillins "
+          "are the classic example."),
+    Alert("SS17", "Aliphatic polyamine",
+          "[$([NX3;H1,H2;!$(N=*);!$(N[CX3]=[OX1]);!$(Na)][CX4][CX4]"
+          "[NX3;!$(N=*);!$(N[CX3]=[OX1]);!$(Na)]),"
+          "$([NX3;H1,H2;!$(N=*);!$(N[CX3]=[OX1]);!$(Na)][CX4][CX4][CX4]"
+          "[NX3;!$(N=*);!$(N[CX3]=[OX1]);!$(Na)])]",
+          "sensitisation",
+          "The short-chain polyamines are established sensitisers. Two basic "
+          "nitrogens two or three carbons apart; amides and anilines are "
+          "excluded, and the spacing rules out the amino acids."),
+    Alert("SS18", "N-nitrosourea or nitrosoguanidine",
+          "[$([NX3]([CX3]=[OX1])[NX2]=[OX1]),$([NX3]([CX3]=[NX2])[NX2]=[OX1])]",
+          "sensitisation",
+          "Decomposes to an alkyldiazonium ion that alkylates protein "
+          "nucleophiles directly, without needing metabolism."),
+    Alert("SS19", "N-methylol (formaldehyde releaser)",
+          "[NX3;!$(N=*)][CX4H2][OX2H]", "sensitisation",
+          "Releases formaldehyde, itself a sensitiser; the imidazolidinyl and "
+          "diazolidinyl urea preservatives work this way."),
+    Alert("SS20", "Heteroaromatic thiol or thione",
+          "[$([SX1]=[#6;r5,r6]~[#7]),$([SX2H][c])]", "sensitisation",
+          "Thiol-exchange and metal-chelating sensitisers; mercaptobenzo"
+          "thiazole is the rubber-accelerator example."),
+    # Deliberately the ester of a *phenol*, not any aroyl ester. The broader
+    # pattern c[CX3](=[OX1])[OX2][#6] gains two actives and costs four
+    # inactives -- methyl paraben, propyl paraben, methyl salicylate and
+    # diethyl phthalate, the same false positives that the phenol alert threw
+    # up when it was first broadened. Restricting it to the phenolic oxygen is
+    # the chemistry: a phenoxide is a far better leaving group than an
+    # alkoxide, so an aryl ester acylates and an alkyl benzoate does not.
+    # Benzyl benzoate is an alkyl ester and is given up as a miss.
+    Alert("SS21", "Activated ester (aryl or alpha-acyloxy)",
+          "[$([CX3](=[OX1])[OX2]c),$([CX3](=[OX1])[OX2][CX4][CX3]=[OX1])]",
+          "sensitisation",
+          "Acyl transfer to lysine with a good leaving group: the phenolic "
+          "esters and the alpha-acyloxy esters of the lactylate surfactants."),
 ]
 
 # --------------------------------------------------------------------------

@@ -30,9 +30,9 @@ The app opens at <http://localhost:8501>.
 | --- | --- |
 | **Cramer rules** | Class I / II / III structural class of oral toxicity, with the full question path |
 | **Verhaar scheme** | Aquatic mode of action (classes 1–5) plus a baseline-narcosis LC50 estimate for classes 1 and 2 |
-| **Genotoxic carcinogenicity** | 38 DNA-reactivity structural alerts |
-| **Non-genotoxic carcinogenicity** | 7 alerts for receptor-mediated and regenerative mechanisms |
-| **Skin sensitisation** | 14 mechanistic protein-binding alerts (Michael addition, Schiff base, acyl transfer, SN2, SNAr) |
+| **Genotoxic carcinogenicity** | 35 DNA-reactivity structural alerts |
+| **Non-genotoxic carcinogenicity** | 7 alerts for receptor-mediated, hormonal and regenerative mechanisms |
+| **Skin sensitisation** | 23 mechanistic protein-binding alerts (Michael addition, Schiff base, acyl transfer, SN2, SNAr) plus the pro-haptens |
 | **Skin / eye irritation** | 10 reactivity triggers — *unvalidated, see below* |
 | **Kroes TTC** | Tiered threshold of toxicological concern, optionally compared against an exposure estimate |
 
@@ -48,7 +48,7 @@ LICENSE             MIT
 app.py              Streamlit interface
 toxtree/
   chem.py           parsing, descriptors, SVG depiction
-  alerts.py         the SMARTS alert library (83 alerts)
+  alerts.py         the SMARTS alert library (89 alerts)
   cramer.py         Cramer decision tree
   verhaar.py        Verhaar scheme + baseline QSARs
   engine.py         orchestration + the Kroes TTC tree
@@ -209,8 +209,43 @@ would hide the trade-off.
 
 | | sensitivity | specificity | balanced acc. | precision |
 | --- | --- | --- | --- | --- |
-| **Skin sensitisation** (209 LLNA) | 52% → **76%** | 68% → 51% | 60% → **64%** | **87%** |
-| **Genotoxicity** (691 Ames) | **89%** | 53% | **71%** | 65% |
+| **Skin sensitisation** (209 LLNA) | 52% → 76% → **92%** | 68% → 51% → 49% | 60% → 64% → **70%** | **88%** |
+| **Genotoxicity** (691 Ames) | **89%** | 53% → **56%** | 71% → **73%** | 65% → **66%** |
+
+### Two alerts that were in the wrong rulebase
+
+Per-alert precision is the useful diagnostic here, because an alert set is a
+union and a bad member costs specificity without buying sensitivity. Two
+members were doing exactly that on the 691 Ames compounds:
+
+| | true pos | false pos | precision |
+| --- | --- | --- | --- |
+| SA35 Thiourea / thioamide | **0** | **10** | **0%** |
+| SA33 Halogenated dibenzodioxin / biphenyl | 1 | 5 | 17% |
+
+A pattern that fires ten times and is wrong ten times carries no information,
+and the diagnosis was mechanistic rather than statistical: both rationales, as
+written in the code, described mechanisms that are *not* DNA-reactive. A
+thiocarbamide inhibits thyroid peroxidase; a halogenated dioxin is a persistent
+AhR ligand and tumour promoter. Both are real carcinogenic mechanisms and
+neither is genotoxicity, so they were in the wrong one of the two rulebases.
+The thiourea case was already settled elsewhere in this file — thiourea is one
+of the compounds used above to confirm that the ISSCAN labels were inverted,
+*because* it is a known non-mutagen.
+
+They now sit in the non-genotoxic set, SA33 as NG8 and SA35 folded into NG6,
+whose thiocarbamide arm was widened from `[NX3]` to `[NX3,#6]` so the
+thioamides keep their coverage. That widening rests on chemistry rather than
+measurement — thioacetamide and its relatives are non-genotoxic
+hepatocarcinogens — and is labelled as such in the code, since the
+non-genotoxic set still has no reference data.
+
+The result is 12 false positives removed at **no cost in sensitivity at all**:
+the misses stay at 36 of 340, exactly the same compounds. Specificity goes
+53.0% → 56.4%, precision 64.8% → 66.5%, balanced accuracy 71.2% → 72.9%. The
+non-genotoxic set, which cannot be scored, was checked for shape the same way
+the irritation set is: it fires on 18.7% of the 689 unique compounds, no single
+alert above 8.7%, with the two newcomers at 2.3% and 0.9%.
 
 ### A label that was the wrong way round
 
@@ -254,6 +289,57 @@ was made to require divalent sulphur.
 Sensitivity is the right thing to optimise here, but it is bought with
 specificity, which fell from 68% to 51%. Balanced accuracy still improved,
 and an alert that fires is right 87% of the time.
+
+### The pro-haptens, found by comparison
+
+At 76% sensitivity this set was still missing a quarter of the sensitisers,
+and nothing in the LLNA data said what they had in common. Running Toxtree's
+own rulebase over the same file did: it caught 34 that this missed, and they
+grouped by *mechanism*. Every alert above is an electrophile as drawn. None of
+the misses was. They become one in the skin — a **pro-hapten** oxidised by
+cutaneous enzymes, or a **pre-hapten** oxidised by air — and that whole
+category was absent:
+
+- **Alkenylphenols and their ethers** (SS13) — anethole, the isoeugenol
+  ethers, 4-allylanisole. Quinone-methide precursors.
+- **Allylic and benzylic primary alcohols** (SS14) — cinnamic alcohol and
+  geraniol act through their aldehydes.
+- **Polycyclic aromatics** (SS15) — benzo[a]pyrene and
+  dimethylbenz[a]anthracene, by the same activation that makes them genotoxic.
+- **Beta-lactams** (SS16), **aliphatic polyamines** (SS17),
+  **N-nitrosoureas** (SS18), **N-methylol formaldehyde releasers** (SS19),
+  **heteroaromatic thiols** (SS20) and **activated esters** (SS21).
+
+Sensitivity went **76% → 92%** for **one** new false positive in 41 inactives:
+specificity 51% → 49%, precision 87% → 88%, balanced accuracy 64% → 70%.
+
+Two details are worth keeping, because both are about restraint.
+
+**The phenol alert had a SMARTS precedence bug, and the comment hid it.** It
+claimed to cover "the eugenol/isoeugenol family"; it covered eugenol only. The
+benzylic branch read `[CX4;!$(C=O),CX3;!$([CX3]=[OX1])]`, and in SMARTS `,`
+binds *tighter* than `;`, so that parses as `CX4 AND (not-C=O OR CX3) AND
+not-CX3=O` — the leading `CX4` makes the `CX3` alternative unreachable.
+Eugenol's benzylic carbon is saturated and matched; isoeugenol's propenyl
+carbon is not and never could. A test now pins isoeugenol.
+
+**The ester alert is deliberately narrower than the misses would justify.**
+Four of the remaining misses are esters, and the obvious pattern — any aroyl
+ester — gains two of them and costs four inactives: methyl paraben, propyl
+paraben, methyl salicylate and diethyl phthalate, the same false positives the
+phenol alert threw up when it was first broadened. Restricting the alert to
+the ester *of a phenol* gains three and costs none, which is also the
+chemistry: a phenoxide is a far better leaving group than an alkoxide, so an
+aryl ester acylates lysine and an alkyl benzoate does not. Benzyl benzoate is
+an alkyl ester and is given up as a miss rather than paid for with the
+parabens. A cyclic-aryl-ester pattern was rejected the same way, for costing
+coumarin and 6-methylcoumarin.
+
+What this does cost is breadth of firing. Across the 831 unique compounds in
+the *other* three reference sets the sensitisation rulebase now fires on 42.5%
+rather than 35.0%, with no single alert above 9.9%. That is the price of
+reading pro-haptens as alerting, and it is the same trade the specificity
+figure reports.
 
 ## Comparing against Toxtree
 
@@ -301,7 +387,7 @@ Class III. Re-deriving structures would measure the drawing, not the rules.
 | --- | --- | --- | --- | --- |
 | Cramer | 108 foodmol | **96.3%** | 77.8% | `toxTree.tree.cramer.CramerRules` |
 | Verhaar | 117 Verhaar2000 | **87.1%** | 53.4% | `verhaar.VerhaarScheme` |
-| Sensitisation | 208 LLNA | 76% sens | **91% sens** | `…SkinSensitisationPlugin` |
+| Sensitisation | 208 LLNA | **92% sens** | 91% sens | `…SkinSensitisationPlugin` |
 | Genotoxicity | 665 ISSCAN Ames | **89% sens** | 87% sens | `mutant.BB_CarcMutRules` |
 | Skin irritation | 129 comparable | — | — | `sicret.SicretRules` |
 | Eye irritation | 37 comparable | — | — | `eye.EyeIrritationRules` |
@@ -324,23 +410,32 @@ the refined scheme. Toxtree answers Class 5, *cannot classify*, for 30 of the
 117, the phenols among them, which is precisely what the refinements were made
 to fix. The script prints this caveat on every Verhaar run.
 
-**Sensitisation is a loss, and a useful one.** Toxtree catches 91% of the LLNA
-sensitisers against 76% here, at 46% specificity against 51% — a better trade
-on this set. 34 compounds it flags and this does not: 1-naphthol,
-2-mercaptobenzothiazole, 3-methylisoeugenol, 3-dimethylaminopropylamine among
-them. That is a concrete work list, not a score.
+**Sensitisation was a loss, and that is what the comparison was for.** Toxtree
+caught 91% of the LLNA sensitisers against 76% here, and the 34 compounds it
+flagged and this did not turned out to group by mechanism rather than scatter,
+which made them fixable — see *The pro-haptens, found by comparison* above.
+With those mechanisms added the two are level and this is marginally ahead:
+
+| | sensitivity | specificity | balanced acc. | precision |
+| --- | --- | --- | --- | --- |
+| ours (23 alerts) | **92%** | **49%** | **70%** | **88%** |
+| Toxtree (OASIS domains) | 91% | 46% | 69% | 87% |
+
+The compounds Toxtree still catches and this does not fell from 34 to 8.
 
 **Genotoxicity is a near-draw on sensitivity and a loss on specificity.** Over
 665 graded ISSCAN compounds:
 
 | | sensitivity | specificity | balanced acc. | precision |
 | --- | --- | --- | --- | --- |
-| ours (38 alerts) | **89%** | 55% | 72% | 65% |
+| ours (35 alerts) | **89%** | 58% | 73% | 67% |
 | Toxtree (Benigni/Bossa) | 87% | **72%** | **79%** | **75%** |
 
-Sensitivity is what this rulebase is tuned for, and 38 alerts match the full
-rulebase on it — 89% against 87%. The cost is 119 compounds flagged here that
-Toxtree leaves alone, which is where the 17 points of specificity go. Toxtree's
+Sensitivity is what this rulebase is tuned for, and 35 alerts match the full
+rulebase on it — 89% against 87%. The cost is the compounds flagged here that
+Toxtree leaves alone, which is where the remaining 14 points of specificity go;
+two of the worst offenders were removed from this set entirely, as described
+under *Two alerts that were in the wrong rulebase*. Toxtree's
 module also runs semi-empirical QM descriptors per molecule, making it far
 slower, and reports an internal tree error on a minority of records.
 
@@ -426,8 +521,8 @@ mislabelled since the examples were written.
 | Cramer classes | 83 (Cramer Appendix 1) | 91.4% concordance |
 | Cramer classes | 108 (reference implementation) | 96.3% concordance — but see *Comparing against Toxtree*: that oracle is a historical Toxtree run, which current Toxtree reproduces 84/108 |
 | Verhaar scheme | 121 (Verhaar *et al.*) | 87.2% concordance |
-| Genotoxicity alerts | 691 (ISSCAN Ames) | 89% sensitivity |
-| Sensitisation alerts | 209 (LLNA) | 76% sensitivity |
+| Genotoxicity alerts | 691 (ISSCAN Ames) | 89% sensitivity, 56% specificity |
+| Sensitisation alerts | 209 (LLNA) | 92% sensitivity, 49% specificity |
 | **Irritation alerts** | **none found** | **unvalidated** — agrees with Toxtree's SICRET/eye rulebases at about chance |
 | **Non-genotoxic carcinogenicity** | **none found** | **unvalidated** |
 

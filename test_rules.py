@@ -285,6 +285,69 @@ def test_alert_rulebases():
     assert "SA10" in codes("C=CC#N", "genotox")                 # acrylonitrile
 
 
+def test_pro_hapten_sensitisers_and_the_esters_they_must_not_catch():
+    """The pro-hapten alerts, and the boundary that keeps them affordable.
+
+    Isoeugenol is the regression that matters: the phenol alert claimed to
+    cover the eugenol/isoeugenol family but a SMARTS precedence slip ("," binds
+    tighter than ";") made its unsaturated branch unreachable, so it caught
+    eugenol and missed isoeugenol for as long as the comment said otherwise.
+
+    The esters are the other boundary. An ester of a phenol acylates lysine and
+    sensitises; an alkyl benzoate does not, and a pattern loose enough to take
+    in both flags every paraben. These four inactives are what that costs.
+    """
+    def codes(smiles):
+        rec = parse_structure(smiles)
+        assert rec.ok, smiles
+        return {h.code for h in assess(rec, {"sensitisation"}).sensitisation}
+
+    assert "SS6" in codes(r"C/C=C\c1ccc(O)c(OC)c1")      # isoeugenol
+    assert "SS6" in codes("C=CCc1ccc(O)c(OC)c1")          # eugenol
+    assert "SS13" in codes("C/C=C/c1ccc(OC)cc1")          # trans-anethole
+    assert "SS14" in codes(r"OC/C=C\c1ccccc1")            # cinnamic alcohol
+    assert "SS16" in codes("CC1(C)S[C@@H]2[C@H](NC(=O)Cc3ccccc3)"
+                           "C(=O)N2[C@H]1C(=O)O")         # penicillin G
+    assert "SS17" in codes("NCCN")                        # ethylenediamine
+    assert "SS18" in codes("CN(N=O)C(N)=O")               # N-methyl-N-nitrosourea
+    assert "SS21" in codes("O=C(Oc1ccccc1)c1ccccc1")      # phenyl benzoate
+
+    # ...and the inactives that a broader ester pattern would have flagged
+    for ester in ("O=C(OC)c1ccc(O)cc1",                   # methyl paraben
+                  "O=C(OCCC)c1ccc(O)cc1",                 # propyl paraben
+                  "O=C(OC)c1ccccc1O",                     # methyl salicylate
+                  "O=C(OCC)c1ccccc1C(=O)OCC"):            # diethyl phthalate
+        assert "SS21" not in codes(ester), ester
+
+    # an alpha-amino acid is not a polyamine and must not fire SS17
+    assert "SS17" not in codes("NCCCCC(N)C(=O)O")         # lysine
+
+
+def test_non_dna_reactive_mechanisms_are_not_genotoxicity_alerts():
+    """Thyroid and AhR mechanisms belong in the non-genotoxic rulebase.
+
+    Both of these were genotoxicity alerts until they were measured against
+    the ISSCAN Ames set, where the thiourea pattern scored 0 true positives
+    against 10 false and the dioxin pattern 1 against 5. Neither mechanism is
+    DNA-reactive -- a thiocarbamide inhibits thyroid peroxidase and an AhR
+    ligand promotes tumours -- so a firing here would be the old mistake
+    coming back rather than a new finding.
+    """
+    def codes(smiles, scheme):
+        a = assess(parse_structure(smiles), {scheme})
+        return {h.code for h in getattr(a, scheme)}
+
+    for smiles in ("NC(N)=S",                    # thiourea
+                   "CC(N)=S",                    # thioacetamide
+                   "Clc1ccc(-c2ccccc2)cc1"):     # 4-chlorobiphenyl
+        assert not codes(smiles, "genotox"), smiles
+        assert codes(smiles, "nongenotox"), smiles
+
+    # the genotoxicity set must still catch what is genuinely DNA-reactive
+    assert codes("CN(C)N=O", "genotox")          # N-nitrosodimethylamine
+    assert codes("C1CO1", "genotox")             # ethylene oxide
+
+
 def test_irritation_alerts_are_not_indiscriminate():
     """The irritation set has no reference data, so this guards its shape.
 
