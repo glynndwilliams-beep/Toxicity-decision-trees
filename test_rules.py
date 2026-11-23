@@ -1,0 +1,329 @@
+"""Regression tests for the rulebases.
+
+Run with:  .venv/Scripts/python.exe -m pytest -q
+or simply: .venv/Scripts/python.exe test_rules.py
+"""
+from __future__ import annotations
+
+from toxtree import assess, parse_structure
+from toxtree.alerts import validate_library
+from toxtree.cramer import CLASS_I, CLASS_II, CLASS_III
+from toxtree.examples import EXAMPLES
+
+# (SMILES, expected Cramer class, expected Verhaar class number, genotox alert?)
+CASES = [
+    ("CCO", CLASS_I, 1, False),                       # ethanol
+    ("OCCO", CLASS_I, 1, False),                      # ethylene glycol
+    ("c1ccccc1", CLASS_I, 1, False),                  # benzene
+    ("Oc1ccccc1", CLASS_I, 2, False),                 # phenol
+    ("Nc1ccccc1", CLASS_III, 2, True),                # aniline
+    ("C1OC1c1ccccc1", CLASS_III, 3, True),            # styrene oxide
+    # Acrolein was pinned to Class III here on my own assumption. Validation
+    # against Cramer et al. (1978) Appendix 1 corrected it: that paper places
+    # trans-2-hexenal and cinnamaldehyde, the same functional class, in Class I,
+    # so a simple alpha,beta-unsaturated aldehyde is Class I in this scheme.
+    # The genotoxicity and Verhaar reactivity alerts still fire, which is where
+    # the concern for acrolein actually shows up.
+    ("C=CC=O", CLASS_I, 3, True),                     # acrolein
+    ("O=CC=CCCC", CLASS_I, 3, True),                  # trans-2-hexenal (ref: 1)
+    ("O=CC=Cc1ccccc1", CLASS_I, 3, True),             # cinnamaldehyde (ref: 1)
+    ("c1cc(ccc1OC)C=CC", CLASS_III, 1, False),        # anethole (ref: 3)
+    ("COC(=O)C=C", CLASS_III, 3, True),               # methyl acrylate
+    ("OCCCl", CLASS_III, 3, True),                    # 2-chloroethanol (ref V3)
+    # Sulphonate and sulphamate salts are Class I: not absorbed, excreted intact
+    ("O=S(=O)([O-].[Na+])NC1CCCCC1", CLASS_I, 5, False),   # cyclamate (ref: 1)
+    ("CCCCCCCCCCCCOS(=O)(=O)[O-].[Na+]", CLASS_I, 5, False),  # lauryl sulfate
+    ("CN(C)N=O", CLASS_III, 5, True),                 # NDMA
+    ("CCOP(=S)(OCC)Oc1ccc(cc1)[N+](=O)[O-]", CLASS_III, 4, True),   # parathion
+    ("CNC(=O)Oc1cccc2ccccc12", CLASS_III, 3, False),  # carbaryl (ref V3)
+    ("CCNc1nc(Cl)nc(NC(C)C)n1", CLASS_III, 2, False), # atrazine (ref V2)
+    ("OCC1OC(O)C(O)C(O)C1O", CLASS_I, 1, False),      # glucose
+    ("NCC(=O)O", CLASS_I, 5, False),                  # glycine
+    ("CC(=C)C1CCC(C)=CC1", CLASS_I, 1, False),        # limonene
+    ("Cn1cnc2c1c(=O)n(C)c(=O)n2C", CLASS_III, 5, False),  # caffeine
+]
+
+
+def test_smarts_library_compiles():
+    assert validate_library() == []
+
+
+def test_cramer_and_verhaar_classes():
+    for smi, cramer_class, verhaar_no, genotox in CASES:
+        rec = parse_structure(smi)
+        assert rec.ok, f"{smi} failed to parse: {rec.error}"
+        a = assess(rec)
+        assert a.cramer.cramer_class == cramer_class, (
+            f"{smi}: Cramer {a.cramer.cramer_class}, expected {cramer_class}")
+        got = int(a.verhaar.verhaar_class.split()[1])
+        assert got == verhaar_no, (
+            f"{smi}: Verhaar class {got}, expected {verhaar_no}")
+        assert bool(a.genotox) == genotox, (
+            f"{smi}: genotox alerts {[h.code for h in a.genotox]}, "
+            f"expected {'some' if genotox else 'none'}")
+
+
+def test_every_example_parses_and_assesses():
+    for name, smi, _ in EXAMPLES:
+        rec = parse_structure(smi, name)
+        assert rec.ok, f"{name} ({smi}) failed to parse: {rec.error}"
+        a = assess(rec)
+        assert a.cramer is not None and a.verhaar is not None
+        assert a.to_row()["SMILES"]
+
+
+def test_ttc_tiers():
+    # a DNA-reactive alert collapses the TTC to the genotoxic-carcinogen tier
+    a = assess(parse_structure("CN(C)N=O"))
+    assert a.ttc_value_ug_day == 0.15
+    # a carbamate without a genotox alert uses the cholinesterase tier
+    a = assess(parse_structure("CNC(=O)Oc1cccc2ccccc12"))
+    assert a.ttc_value_ug_day == 18.0
+    # an inert Class I substance uses the Cramer tier
+    a = assess(parse_structure("CCO"))
+    assert a.ttc_value_ug_day == 1800.0
+    # metals fall outside the TTC domain entirely
+    a = assess(parse_structure("[Hg]"))
+    assert a.ttc_value_ug_day is None
+
+
+def test_primary_metabolite_question():
+    """Cramer's Q1 is narrow: metabolic building blocks, not "in the body".
+
+    An earlier version used the full 439-structure body-constituent file and
+    needed an explicit guard to stop biotin and riboflavin reaching Class I.
+    With the right membership no guard is needed -- cysteine and methionine
+    are in the set, biotin and ascorbic acid simply are not -- and the guard
+    was removed.
+    """
+    from toxtree import reflists
+
+    # The app must work whether or not the optional lists are installed.
+    assert isinstance(reflists.status(), dict)
+
+    def cls(smiles):
+        return assess(parse_structure(smiles), {"cramer"}).cramer.cramer_class
+
+    for smiles in ("NCC(=O)O",                      # glycine
+                   "N[C@@H](CS)C(O)=O",             # cysteine (sulphur)
+                   "CSCC[C@H](N)C(O)=O",            # methionine (sulphur)
+                   "[H][C@@]1(CCCN1)C(O)=O",        # proline (2nd amine)
+                   "N[C@@H](CC1=CNC=N1)C(O)=O"):    # histidine (tautomer)
+        assert cls(smiles) == CLASS_I, smiles
+
+    # In the body, but not metabolic building blocks: these must fall through
+    # to the structural questions rather than short-circuit to Class I.
+    for smiles in ("OC(=O)CCCCC1SCC2NC(=O)NC12",            # biotin
+                   "OC[C@H](O)[C@H]1OC(=O)C(O)=C1O",        # ascorbic acid
+                   "OC(=O)CC(O)(CC(O)=O)C(O)=O",            # citric acid
+                   "OC[C@@H](O)[C@@H](O)[C@H](O)[C@@H](O)CO"):  # sorbitol
+        assert cls(smiles) != CLASS_I, smiles
+
+
+def test_carbohydrates_and_oxygen_density():
+    """Cyclic sugars are Class I; open-chain polyols and polyacids are not."""
+    def cls(smiles):
+        return assess(parse_structure(smiles), {"cramer"}).cramer.cramer_class
+
+    # ring form -> Class I
+    assert cls("OC[C@H]1O[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O[C@@H]2O[C@H](CO)"
+               "[C@H](O)[C@H](O)[C@H]2O") == CLASS_I          # lactose
+    assert cls("OC[C@H]1O[C@H](O[C@]2(CO)O[C@H](CO)[C@@H](O)[C@@H]2O)"
+               "[C@H](O)[C@@H](O)[C@@H]1O") == CLASS_I        # sucrose
+
+    # one or two oxygen functions still read as readily metabolised
+    assert cls("CCO") == CLASS_I                              # ethanol
+    assert cls("OCC(O)C") == CLASS_I                          # propylene glycol
+    assert cls("CCCCCCCCCCCCCCCCCCCCCCCC(O)=O") == CLASS_I    # lignoceric acid
+    # three or more, or an alpha-dicarbonyl, do not
+    assert cls("OC[C@@H](O)[C@@H](O)[C@H](O)[C@H](O)CO") != CLASS_I  # mannitol
+    assert cls("CC(=O)C(C)=O") != CLASS_I                     # diacetyl
+    assert cls("OC(=O)C(O)=O") != CLASS_I                     # oxalic acid
+
+
+def test_food_question_is_gated():
+    from toxtree import reflists
+    if reflists.FOOD:
+        # Food-list membership is context only: it must not change the class.
+        # Caffeine is on the list and is Class III; ethanol is on it and is
+        # Class I. Any rule keying off membership alone breaks one of them.
+        caffeine = assess(parse_structure("Cn1cnc2c1c(=O)n(C)c(=O)n2C"))
+        assert caffeine.cramer.cramer_class == CLASS_III
+        assert caffeine.cramer.food_component
+        ethanol = assess(parse_structure("CCO"))
+        assert ethanol.cramer.cramer_class == CLASS_I
+        assert ethanol.cramer.food_component
+
+
+def test_class_two_discrimination():
+    """The food question (Q22) and the acylated-heteroatom question (Q11).
+
+    These were recovered from ~190 recorded decision paths. Q22 asks whether a
+    substance is a common component of food and answers Class II, but it is
+    only reached when the ring heteroatoms are unacylated. That single gate is
+    what separates maltol from caffeine -- both food-listed heterocycles, but
+    Class II and Class III respectively -- and it is the whole reason Class II
+    is reproducible at all.
+    """
+    from toxtree import reflists
+    if not reflists.FOOD:
+        return  # reference lists not installed
+
+    def cls(smiles):
+        return assess(parse_structure(smiles), {"cramer"}).cramer.cramer_class
+
+    # Acylated ring heteroatom -> bypasses the food question -> Class III
+    assert cls("Cn1cnc2c1c(=O)n(C)c(=O)n2C") == CLASS_III          # caffeine
+    assert cls("CN1C=NC2=C1C(=O)NC(=O)N2C") == CLASS_III           # theobromine
+    assert cls("CC1=CC2=C(C=C1C)N(C[C@@H](O)[C@@H](O)[C@@H](O)CO)"
+               "C3=NC(=O)NC(=O)C3=N2") == CLASS_III                # riboflavin
+
+    # No acylated heteroatom -> reaches the food question -> Class II
+    assert cls("CC1=C(O)C(=O)C=CO1") == CLASS_II                   # maltol
+    assert cls("CCC1=C(O)C(=O)C=CO1") == CLASS_II                  # ethyl maltol
+    assert cls("OC(=O)C1=CC=CN=C1") == CLASS_II                    # niacin
+    assert cls("CC1=CN=CC=N1") == CLASS_II                         # methylpyrazine
+
+    # Compounds that exit as Class I earlier must never reach the food
+    # question, even though they are on the food list.
+    assert cls("COc1cc(C=O)ccc1O") == CLASS_I                      # vanillin
+    assert cls("CCO") == CLASS_I                                   # ethanol
+
+
+def test_question_order_and_parsing_edge_cases():
+    """Ordering and input quirks that silently produced wrong classes."""
+    def cls(smiles):
+        return assess(parse_structure(smiles), {"cramer"}).cramer.cramer_class
+
+    # Water is a normal body constituent and Class I. It only reaches that
+    # answer because the body-constituent question precedes the
+    # organic/metal applicability check -- reversed, water is "inorganic".
+    assert cls("O") == CLASS_I
+    # ... and it must survive being written with explicit hydrogens, which
+    # would otherwise be counted as heavy atoms throughout.
+    assert cls("[H]O[H]") == CLASS_I
+
+    # Open-chain sugars are carbohydrates; the fully reduced polyols are not.
+    assert cls("OCC(=O)[C@@H](O)[C@H](O)[C@H](O)CO") == CLASS_I   # fructose
+    assert cls("OC(=O)[C@@H](O)[C@H](O)[C@H](O)[C@@H](O)C=O") == CLASS_I
+
+    # A single ionised head group on an alkyl chain is enough; the density
+    # requirement applies only to large aromatic dyes.
+    assert cls("O=S(=O)([O-])OCCOCCOCCOCCCCCCCCCCCC.[Na+]") == CLASS_I
+
+    # Sulphur compounds are routed away from the food question, so a listed
+    # food component that reaches Class III through sulphur stays there.
+    from toxtree import reflists
+    if reflists.FOOD:
+        assert cls("S1C=CC=C1") == CLASS_III                      # thiophene
+
+
+def test_verhaar_rules():
+    """Verhaar behaviours fixed by validation against the 121-compound set."""
+    def vh(smiles):
+        return int(assess(parse_structure(smiles),
+                          {"verhaar"}).verhaar.verhaar_class.split()[1])
+
+    # Two bugs: an alert labelled "two or more nitro groups" whose pattern
+    # matched a single one, and a trifluoromethyl group being read as an
+    # activated halide. Both made polar narcotics look reactive.
+    assert vh("O=[N+]([O-])c1ccc(O)cc1") == 2              # 4-nitrophenol
+    assert vh("O=[N+]([O-])c1ccc(O)cc1C(F)(F)F") == 2      # and its CF3 analogue
+    # genuine dinitro compounds are still reactive
+    assert vh("O=[N+]([O-])c1ccc(O)c([N+](=O)[O-])c1") == 3
+
+    # Amides, carbamates and aromatic esters hydrolyse to acylating species:
+    # unanimous in the reference data, and previously answered "class 5".
+    assert vh("CN(C)C=O") == 3                              # dimethylformamide
+    assert vh("CCCCOC(=O)c1ccccc1C(=O)OCCCC") == 3          # dibutyl phthalate
+    assert vh("CNC(=O)Oc1cccc2ccccc12") == 3                # carbaryl
+
+    # Reactive aliphatics that were being called inert
+    assert vh("C=CCO") == 3                                 # allyl alcohol
+    assert vh("OCCCl") == 3                                 # 2-chloroethanol
+
+    # Organophosphates remain specifically acting; triazines are not
+    assert vh("CCOP(=S)(OCC)Oc1ccc(cc1)[N+](=O)[O-]") == 4  # parathion
+    assert vh("CCNc1nc(Cl)nc(NC(C)C)n1") == 2               # atrazine
+
+    # Baseline narcosis is untouched
+    assert vh("CCO") == 1 and vh("c1ccccc1") == 1
+
+
+def test_alert_rulebases():
+    """Alert behaviours fixed by validating against LLNA and Ames data."""
+    def codes(smiles, scheme):
+        return {h.code for h in getattr(
+            assess(parse_structure(smiles), {scheme}), scheme)}
+
+    # --- skin sensitisation (LLNA) -------------------------------------
+    # Gaps that cost half the sensitivity of the original alert set.
+    assert "SS3b" in codes("CCCCC1=NC(C)(C)C(=O)O1", "sensitisation")  # azlactone
+    assert "SS3b" in codes("O=C1CCc2ccccc2O1", "sensitisation")        # lactone
+    assert "SS4" in codes("CCCCCCCCCCCCCCCCCl", "sensitisation")       # alkyl chloride
+    assert "SS2b" in codes("CC(=O)C(C)=O", "sensitisation")            # 1,2-diketone
+    assert "SS2b" in codes("CC(=O)CC(=O)c1ccccc1", "sensitisation")    # 1,3-diketone
+    assert "SS6" in codes("C=CCc1ccc(O)c(OC)c1", "sensitisation")      # eugenol
+    assert "SS11" in codes("Cn1sccc1=O", "sensitisation")              # methylisothiazolinone
+
+    # A quinone methide needs benzylic hydrogens, so a carboxyl or ester
+    # carbon on the ring must not fire SS6 -- that was flagging every paraben
+    # and salicylate as a sensitiser.
+    for non_sensitiser in ("CCCOC(=O)c1ccc(O)cc1",     # propyl paraben
+                           "COC(=O)c1ccccc1O",          # methyl salicylate
+                           "O=C(O)c1ccc(O)cc1"):        # 4-hydroxybenzoic acid
+        assert "SS6" not in codes(non_sensitiser, "sensitisation"), non_sensitiser
+    # saccharin's sulphonyl sulphur is not a reactive isothiazolinone
+    assert "SS11" not in codes("O=C1NS(=O)(=O)c2ccccc21", "sensitisation")
+
+    # --- genotoxicity (Ames) -------------------------------------------
+    # Fully esterified sulfates and phosphates alkylate; the salts do not.
+    assert "SA2b" in codes("CCOS(=O)(=O)OCC", "genotox")        # diethyl sulfate
+    assert "SA2b" in codes("COP(=O)(OC)OC", "genotox")          # trimethyl phosphate
+    assert not codes("CCCCCCCCCCCCOS(=O)(=O)[O-].[Na+]", "genotox")
+    # conjugate acceptors other than carbonyls
+    assert "SA10" in codes("C=CC#N", "genotox")                 # acrylonitrile
+
+
+def test_irritation_alerts_are_not_indiscriminate():
+    """The irritation set has no reference data, so this guards its shape.
+
+    No experimental irritation set is available (the Toxtree repository has
+    none, and no public machine-readable one surfaced), so these alerts are
+    unvalidated. What can be checked without labels is that they discriminate
+    at all, and that they do not fire on compounds whose chemistry rules it
+    out. An alpha-amino acid is zwitterionic at skin pH, so neither its
+    carboxyl nor its amine behaves as a free acid or base.
+    """
+    def codes(smiles):
+        return {h.code for h in
+                assess(parse_structure(smiles), {"irritation"}).irritation}
+
+    for amino_acid in ("NCC(=O)O",              # glycine
+                       "CC(N)C(=O)O",           # alanine
+                       "CC(C)CC(N)C(=O)O"):     # leucine
+        assert not codes(amino_acid) & {"IR1", "IR4"}, amino_acid
+
+    # but a free acid, a free base and a phenol must still fire
+    assert "IR1" in codes("CC(=O)O")            # acetic acid
+    assert "IR4" in codes("CCN")                # ethylamine
+    assert "IR7" in codes("Oc1ccccc1")          # phenol
+    assert "IR3" in codes("CC(=O)Cl")           # acetyl chloride
+
+    # and the set must not simply flag everything
+    for benign in ("CCCC", "OCC1OC(O)C(O)C(O)C1O", "c1ccccc1"):
+        assert not codes(benign), benign
+
+
+def test_bad_input_is_reported_not_raised():
+    rec = parse_structure("not a molecule at all")
+    assert not rec.ok and rec.error
+
+
+if __name__ == "__main__":
+    passed = 0
+    for fn in [v for k, v in sorted(globals().items()) if k.startswith("test_")]:
+        fn()
+        print(f"  ok  {fn.__name__}")
+        passed += 1
+    print(f"\n{passed} test group(s) passed.")
