@@ -44,6 +44,7 @@ and **Rulebase reference** (every alert with its SMARTS pattern, searchable).
 ## Layout
 
 ```
+LICENSE             MIT
 app.py              Streamlit interface
 toxtree/
   chem.py           parsing, descriptors, SVG depiction
@@ -441,6 +442,20 @@ of the data was wrong:
   ascorbic acid and riboflavin are all in it and the scheme still rates them
   II or III. An explicit guard patched around that for a while; identifying
   the narrow membership Q1 actually asks for removed the need for one.
+
+## Licence
+
+The code in this repository is **MIT licensed** (see `LICENSE`). The rules
+are written from the published literature, so the implementation is
+original work and carries no obligations from any other project.
+
+**The reference data is a separate matter.** Everything the `tools/`
+scripts fetch into `toxtree/data/` — the body and food constituent lists,
+and the Cramer, Verhaar, LLNA and Ames validation sets — is GPL-licensed
+where it is distributed. None of it is committed here, which is why those
+paths are in `.gitignore` and why the app is built to run without them.
+Fetching it for your own use is fine; redistributing it under this MIT
+licence would not be, so do not add it to a fork.
 
 ## Provenance and scope
 
