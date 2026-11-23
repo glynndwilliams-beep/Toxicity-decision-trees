@@ -15,7 +15,7 @@ import csv
 import sys
 from collections import Counter
 
-from toxtree import assess, parse_structure
+from toxtree import assess, domain_exclusion, parse_structure
 
 
 def main(path: str, show: int = 30) -> int:
@@ -24,12 +24,19 @@ def main(path: str, show: int = 30) -> int:
     matrix: Counter[tuple[int, int]] = Counter()
     errors: list[dict] = []
     unparsed = 0
+    excluded: list[tuple[str, str]] = []
 
     for r in rows:
         expected = int(r["verhaar"])
         rec = parse_structure(r["smiles"], r.get("name") or None)
         if not rec.ok:
             unparsed += 1
+            continue
+        # As in validate_cramer.py: the scheme cannot answer for a metal
+        # compound or a carbon-free inorganic, so it is not scored.
+        reason = domain_exclusion(rec, for_tree=True)
+        if reason is not None:
+            excluded.append((r.get("name") or r["smiles"], reason))
             continue
         result = assess(rec, {"verhaar"}).verhaar
         got = int(result.verhaar_class.split()[1])

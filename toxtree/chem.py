@@ -16,6 +16,12 @@ RDLogger.DisableLog("rdApp.*")
 ORGANIC_ELEMENTS = {"C", "H", "N", "O", "S", "F", "Cl", "Br", "I", "P"}
 CRAMER_ALLOWED = {"C", "H", "N", "O", "S", "F", "Cl", "Br", "I"}
 
+# Alkali and alkaline-earth metals. These are benign as counterions and are
+# stripped as such, so one still present in the parent after stripping is
+# covalently bound -- calcium cyanamide rather than sodium benzoate -- which
+# puts the compound outside the domain of every scheme here.
+LIGHT_METALS = {"Li", "Na", "K", "Rb", "Cs", "Mg", "Ca"}
+
 HEAVY_METALS = {
     "Be", "Al", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga",
     "Ge", "As", "Se", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd",
@@ -150,6 +156,43 @@ def parse_many(lines: Iterable[str]) -> list[MolRecord]:
                     break
         out.append(parse_structure(line, name))
     return out
+
+
+def domain_exclusion(rec: "MolRecord", for_tree: bool = False) -> str | None:
+    """Why this structure is outside a scheme's applicability domain.
+
+    A metal compound is outside every rulebase here: no SMARTS pattern in the
+    library addresses a metal centre, and neither tree asks a question that
+    applies to one. Scoring those counts a deliberate refusal as a miss.
+
+    Carbon-free compounds are different, and the distinction is `for_tree`.
+    The Cramer and Verhaar trees ask about organic functional groups and
+    cannot answer for hydrazine or sodium nitrite at all. The *alert* sets
+    can: SA13 is a hydrazine pattern and SA34 a peroxide one. Excluding
+    inorganics from an alert run would therefore be ducking -- potassium
+    bromate and sodium nitrite are genuine mutagens that this library has no
+    pattern for, and they should be counted as the misses they are.
+
+    Benign counterions have already been stripped by the time this is asked,
+    so a sodium carboxylate is in domain and sodium nitrite is not.
+
+    Multi-fragment records are deliberately *not* excluded, although the
+    README lists mixtures as out of domain. Counting fragments does not
+    identify a mixture: the reference files write racemates as two
+    enantiomers in one record (DL-menthol, DL-ethionine) and commercial
+    isomer blends as their components (toluene diisocyanate), and the rules
+    answer the same for each fragment. Excluding those would quietly drop
+    genuine actives, so the only exclusions here are the two that are real.
+    """
+    p = rec.props
+    if not rec.ok:
+        return "unparsable"
+    metals = sorted(set(p.get("elements", [])) & (HEAVY_METALS | LIGHT_METALS))
+    if metals:
+        return f"metal compound ({', '.join(metals)})"
+    if for_tree and not p.get("is_organic"):
+        return "inorganic (no carbon)"
+    return None
 
 
 def compute_descriptors(mol: Chem.Mol) -> dict:

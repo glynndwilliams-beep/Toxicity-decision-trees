@@ -533,9 +533,9 @@ fixture and cannot be read, leaving 81 scored:
 | --- | --- | --- | --- | --- |
 | **Reference Class I** | **31** | 0 | 1 | 32 |
 | **Reference Class II** | 4 | **3** | 0 | 7 |
-| **Reference Class III** | 1 | 1 | **40** | 42 |
+| **Reference Class III** | 1 | 1 | **36** | 38 |
 
-**Overall concordance 74/81 = 91.4%** — Class I 97%, Class II 43%, Class III 95%.
+**Overall concordance 70/77 = 90.9%** — Class I 97%, Class II 43%, Class III 95%.
 Six compounds are placed in a *lower* class than the reference (the unsafe
 direction) and one in a higher one.
 
@@ -548,9 +548,9 @@ Class II compounds against Appendix 1's seven:
 | --- | --- | --- | --- | --- |
 | **Reference Class I** | **66** | 1 | 0 | 67 |
 | **Reference Class II** | 2 | **27** | 1 | 30 |
-| **Reference Class III** | 0 | 0 | **11** | 11 |
+| **Reference Class III** | 0 | 0 | **10** | 10 |
 
-**104/108 = 96.3%** — Class I 99%, Class II 90%, Class III 100%.
+**102/106 = 96.2%** — Class I 98%, Class II 90%, Class III 100%.
 
 Run both yourself: `python tools/fetch_reference.py out/` and
 `python tools/fetch_reference_lists.py toxtree/data/`, then
@@ -619,9 +619,11 @@ Both alerts now exclude that case.
 
 Alert sets are screening filters, so the number that matters is
 sensitivity. Against a 209-compound local lymph node assay set the
-sensitisation alerts went from **52% to 76% sensitivity** (balanced
-accuracy 60% to 64%, precision 87%); against 691 Ames compounds the
-genotoxicity alerts reach **89% sensitivity**, 71% balanced accuracy.
+sensitisation alerts went from **52% to 92% sensitivity** (balanced
+accuracy 60% to 70%, precision 88%); against the Ames set the
+genotoxicity alerts reach **90% sensitivity**, 75% balanced accuracy.
+Both sets have been compared against the Java Toxtree implementation
+compound by compound; see the project README.
 
 The sensitisation gaps grouped by mechanism: azlactones and lactones were
 missing from acyl transfer, the SN2 pattern accepted bromide and iodide
@@ -681,8 +683,8 @@ had needed.
 **On self-confirmation.** The Q1 membership was identified from the recorded
 paths, which include both validation sets, so that part is partly circular.
 The effect is measurable and small: on the Appendix 1 set *no compound at all*
-is decided by that list, so its 91.4% is entirely structural; on the food set
-24 of 108 are, and excluding them the remaining 84 score 95.2% against 96.3%
+is decided by that list, so its 90.9% is entirely structural; on the food set
+23 of 106 are, and excluding them the remaining 83 score 95.2% against 96.2%
 overall.
 
 ### What the curated lists can and cannot do

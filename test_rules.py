@@ -28,7 +28,12 @@ CASES = [
     ("O=CC=CCCC", CLASS_I, 3, True),                  # trans-2-hexenal (ref: 1)
     ("O=CC=Cc1ccccc1", CLASS_I, 3, True),             # cinnamaldehyde (ref: 1)
     ("c1cc(ccc1OC)C=CC", CLASS_III, 1, False),        # anethole (ref: 3)
-    ("COC(=O)C=C", CLASS_III, 3, True),               # methyl acrylate
+    # Methyl acrylate was pinned here as genotoxicity-alerting, on SA10. It no
+    # longer alerts, and the Ames data says that is right: the acrylates and
+    # methacrylates in the reference set are all inactive. Its reactivity is
+    # with protein, so it alerts for sensitisation instead, and Verhaar still
+    # calls it Class 3.
+    ("COC(=O)C=C", CLASS_III, 3, False),              # methyl acrylate
     ("OCCCl", CLASS_III, 3, True),                    # 2-chloroethanol (ref V3)
     # Sulphonate and sulphamate salts are Class I: not absorbed, excreted intact
     ("O=S(=O)([O-].[Na+])NC1CCCCC1", CLASS_I, 5, False),   # cyclamate (ref: 1)
@@ -281,8 +286,21 @@ def test_alert_rulebases():
     assert "SA2b" in codes("CCOS(=O)(=O)OCC", "genotox")        # diethyl sulfate
     assert "SA2b" in codes("COP(=O)(OC)OC", "genotox")          # trimethyl phosphate
     assert not codes("CCCCCCCCCCCCOS(=O)(=O)[O-].[Na+]", "genotox")
-    # conjugate acceptors other than carbonyls
-    assert "SA10" in codes("C=CC#N", "genotox")                 # acrylonitrile
+
+    # This used to assert that acrylonitrile fires SA10, the alpha,beta-
+    # unsaturated acceptor. SA10 has since been removed: measured over the
+    # Ames set it alone flagged 14 inactives against 3 actives, because a
+    # Michael acceptor is protein-reactive rather than DNA-reactive. The same
+    # pattern earns 96% precision as a sensitisation alert, so acrylonitrile
+    # is now expected to alert there and not here. Giving it up as a
+    # genotoxicity miss was the deliberate price.
+    assert not codes("C=CC#N", "genotox")                       # acrylonitrile
+    assert "SS1" in codes("C=CC#N", "sensitisation")
+    # ...but the pyrrolizidine alkaloids SA10 was catching incidentally are
+    # kept, by the alert that describes what actually makes them genotoxic.
+    assert "SA39" in codes(
+        r"C/C=C(\C)C(=O)OC1CCN2CC=C(COC(=O)C(C)(O)C(C)(O)C)C12",
+        "genotox")                                              # lasiocarpine
 
 
 def test_pro_hapten_sensitisers_and_the_esters_they_must_not_catch():

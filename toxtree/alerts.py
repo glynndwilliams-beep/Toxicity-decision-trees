@@ -61,9 +61,21 @@ GENOTOX: list[Alert] = [
           "Potential SN2 alkylating agent."),
     Alert("SA9", "Alkyl nitrite", "[CX4]O[NX2]=[OX1]", "genotox",
           "Nitrosating agent; can generate alkylating nitrosamines."),
-    Alert("SA10", "Alpha,beta-unsaturated carbonyl, nitrile or sulphone",
-          "[CX3]=[CX3][$([CX3]=[OX1]),$([CX2]#[NX1]),$([SX4](=O)=O)]", "genotox",
-          "Michael acceptor; alkylates DNA bases at nucleophilic nitrogen."),
+    # SA10 (alpha,beta-unsaturated carbonyl, nitrile or sulphone) used to sit
+    # here. It was the largest single source of wrong calls in this set: 14 of
+    # the compounds it alone flagged are Ames-negative -- acrylamide, acrylic
+    # acid, the methacrylates, ascorbic acid, curcumin, caffeic acid, carvone,
+    # the tetracyclines -- against 3 actives it alone caught. The reason is the
+    # same one that moved SA35 and SA33 out: a Michael acceptor is
+    # protein-reactive, not DNA-reactive. Thiols and glutathione consume it
+    # long before DNA does, which is why this pattern scores 96% precision as
+    # a *sensitisation* alert (SS1) and 36% here.
+    #
+    # Two of its three actives were pyrrolizidine alkaloids, which it caught
+    # for the wrong reason -- their genotoxicity is the dehydropyrrolizidine
+    # ester, not the enoate -- so SA39 below catches them properly. The third,
+    # acrylonitrile, is given up: it is Ames-positive through its epoxide, and
+    # no pattern separates it from methacrylonitrile, which is not.
     Alert("SA11", "Simple aldehyde", "[$([CX3H1](=[OX1])[#6;!$([CX3]=[OX1])]),$([CX3H2]=[OX1])]", "genotox",
           "Forms Schiff bases and DNA-protein cross-links."),
     Alert("SA12", "Quinone", "[$(O=C1C=CC(=O)C=C1),$(O=C1C=CC=CC1=O)]", "genotox",
@@ -74,9 +86,17 @@ GENOTOX: list[Alert] = [
           "Activated to alkyl diazonium ions."),
     Alert("SA15", "Isocyanate or isothiocyanate", "[NX2]=[CX2]=[OX1,SX1]", "genotox",
           "Direct carbamoylating agent."),
+    # SA16 is kept deliberately, against the measurement. Removing it would
+    # buy 2 points of specificity, because the only two compounds it alone
+    # flags are urethane and methyl carbamate and both are Ames-negative. But
+    # urethane is the textbook Ames-negative genotoxic *carcinogen*: it is
+    # activated to vinyl carbamate epoxide in the liver, which the bacterial
+    # assay does not model. Dropping it would fit this rulebase to the Ames
+    # endpoint at the cost of the endpoint it is actually for.
     Alert("SA16", "Alkyl carbamate or thiocarbamate",
           "[NX3][CX3](=[OX1,SX1])[OX2][CX4]", "genotox",
-          "Carbamoylates DNA and protein nucleophiles."),
+          "Carbamoylates DNA and protein nucleophiles; activated to the "
+          "vinyl carbamate epoxide, which the Ames assay does not see."),
     Alert("SA18", "Polycyclic aromatic hydrocarbon", "c1ccc2c(c1)ccc1ccccc12", "genotox",
           "Bay/fjord-region diol epoxides form bulky DNA adducts."),
     Alert("SA19", "Heterocyclic polycyclic aromatic", "[$(c1ccc2c(c1)ccc1ccncc12),$(c1ccc2c(c1)[nH]c1ccccc12)]",
@@ -124,6 +144,13 @@ GENOTOX: list[Alert] = [
           "genotox", "Carbene/diazo precursor; direct DNA alkylation."),
     Alert("SA38", "Propargyl / allyl halide", "[$([CX2]#[CX2][CX4][F,Cl,Br,I]),$([CX3]=[CX3][CX4][F,Cl,Br,I])]",
           "genotox", "Highly activated SN2/SN2' alkylating agent."),
+    Alert("SA39", "1,2-unsaturated pyrrolizidine ester",
+          "[CX3;R](=[CX3;R][CX4H2;R][NX3;R])[CX4H2][OX2][CX3]=[OX1]", "genotox",
+          "Pyrrolizidine alkaloid. Dehydrogenated in the liver to a pyrrolic "
+          "ester that cross-links DNA. It replaces the enoate pattern that "
+          "used to catch lasiocarpine and riddelline incidentally; its one "
+          "Ames-negative hit, monocrotaline, is itself an established "
+          "genotoxic hepatocarcinogen that the bacterial assay misses."),
 ]
 
 # --------------------------------------------------------------------------

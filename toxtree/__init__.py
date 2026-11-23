@@ -12,5 +12,6 @@ examples  a small set of reference structures
 
 __version__ = "1.0.0"
 
-from .chem import MolRecord, parse_many, parse_structure  # noqa: F401
+from .chem import (MolRecord, domain_exclusion, parse_many,  # noqa: F401
+                   parse_structure)
 from .engine import Assessment, SCHEME_LABELS, assess, assess_many  # noqa: F401

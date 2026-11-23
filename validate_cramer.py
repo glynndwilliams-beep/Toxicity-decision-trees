@@ -16,7 +16,7 @@ import csv
 import sys
 from collections import Counter, defaultdict
 
-from toxtree import assess, parse_structure
+from toxtree import assess, domain_exclusion, parse_structure
 from toxtree.cramer import CLASS_I, CLASS_II, CLASS_III
 
 CLASS_OF = {CLASS_I: 1, CLASS_II: 2, CLASS_III: 3}
@@ -32,6 +32,7 @@ def main(path: str, show_errors: int = 25) -> int:
     matrix: Counter[tuple[int, int]] = Counter()
     errors: list[dict] = []
     unparsed: list[dict] = []
+    excluded: list[tuple[str, str]] = []
 
     for r in rows:
         expected = int(r["cramer"])
@@ -39,6 +40,13 @@ def main(path: str, show_errors: int = 25) -> int:
         if not rec.ok:
             unparsed.append({"smiles": r["smiles"], "name": r.get("name", ""),
                              "error": rec.error})
+            continue
+        # The tree asks about organic functional groups, so a metal compound
+        # or a carbon-free inorganic is a refusal, not a classification.
+        # Scoring it would count that refusal as a wrong answer.
+        reason = domain_exclusion(rec, for_tree=True)
+        if reason is not None:
+            excluded.append((r.get("name") or r["smiles"], reason))
             continue
         got = CLASS_OF[assess(rec, {"cramer"}).cramer.cramer_class]
         matrix[(expected, got)] += 1
@@ -53,7 +61,15 @@ def main(path: str, show_errors: int = 25) -> int:
     correct = sum(n for (e, g), n in matrix.items() if e == g)
 
     print(f"Reference set: {len(rows)} compounds "
-          f"({scored} classified, {len(unparsed)} unparsable)\n")
+          f"({scored} classified, {len(unparsed)} unparsable"
+          + (f", {len(excluded)} out of domain" if excluded else "") + ")\n")
+    if excluded:
+        print(f"Outside the applicability domain, not scored ({len(excluded)}):")
+        for name, reason in excluded[:8]:
+            print(f"  {name[:40]:40s} {reason}")
+        if len(excluded) > 8:
+            print(f"  ... and {len(excluded) - 8} more")
+        print()
 
     print("Confusion matrix (rows = reference, columns = this implementation)")
     print(f"{'':>12}" + "".join(f"{'-> ' + str(c):>10}" for c in (1, 2, 3)) + f"{'n':>8}")

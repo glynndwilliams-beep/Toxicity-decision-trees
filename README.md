@@ -93,15 +93,17 @@ fetch it and run the comparison:
 .venv\Scripts\python.exe validate_cramer.py out\cramer_reference.csv
 ```
 
-Current result — 81 scored, 2 excluded for malformed structures in the source:
+Current result — 77 scored; 2 excluded for malformed structures in the source
+and 4 for being outside the domain of the scheme (two organotins, a beryllium
+salt and a mercurial):
 
 | | → I | → II | → III | n |
 | --- | --- | --- | --- | --- |
 | **Reference I** | **31** | 0 | 1 | 32 |
 | **Reference II** | 4 | **3** | 0 | 7 |
-| **Reference III** | 1 | 1 | **40** | 42 |
+| **Reference III** | 1 | 1 | **36** | 38 |
 
-**91.4% overall** (Class I 97%, Class II 43%, Class III 95%), with 6 under-calls
+**90.9% overall** (Class I 97%, Class II 43%, Class III 95%), with 6 under-calls
 and 1 over-call. `validate_cramer.py` prints every disagreement together with
 the decision path that caused it, so each can be judged rather than counted.
 
@@ -181,11 +183,13 @@ against Appendix 1's seven:
 
 | | → I | → II | → III | n |
 | --- | --- | --- | --- | --- |
-| **Reference I** | **66** | 1 | 0 | 67 |
+| **Reference I** | **65** | 1 | 0 | 66 |
 | **Reference II** | 2 | **27** | 1 | 30 |
-| **Reference III** | 0 | 0 | **11** | 11 |
+| **Reference III** | 0 | 0 | **10** | 10 |
 
-**104/108 = 96.3%** — Class I 99%, Class II 90%, Class III 100%.
+**102/106 = 96.2%** — Class I 98%, Class II 90%, Class III 100%. Sodium
+chloride and water are not scored; they are not organic molecules and the
+scheme does not claim to classify them.
 
 ## Validating the structural alerts
 
@@ -210,7 +214,7 @@ would hide the trade-off.
 | | sensitivity | specificity | balanced acc. | precision |
 | --- | --- | --- | --- | --- |
 | **Skin sensitisation** (209 LLNA) | 52% → 76% → **92%** | 68% → 51% → 49% | 60% → 64% → **70%** | **88%** |
-| **Genotoxicity** (691 Ames) | **89%** | 53% → **56%** | 71% → **73%** | 65% → **66%** |
+| **Genotoxicity** (672 Ames) | 89% → **90%** | 53% → **59%** | 71% → **75%** | 65% → **68%** |
 
 ### Two alerts that were in the wrong rulebase
 
@@ -246,6 +250,90 @@ the misses stay at 36 of 340, exactly the same compounds. Specificity goes
 non-genotoxic set, which cannot be scored, was checked for shape the same way
 the irritation set is: it fires on 18.7% of the 689 unique compounds, no single
 alert above 8.7%, with the two newcomers at 2.3% and 0.9%.
+
+### Counting only the alerts that actually cost something
+
+Per-alert precision is still the wrong measure for deciding what to remove,
+because an alert set is a union: a pattern with many false positives that are
+*also* flagged by something else costs nothing, and tightening it changes no
+verdict. What matters is the **solo** count — the compounds an alert alone is
+responsible for. The two measures disagree sharply. SA38 (propargyl / allyl
+halide) sits at 27% precision with 8 false positives and **none** of them solo;
+it is free. Meanwhile:
+
+| alert | solo actives | solo inactives | if removed |
+| --- | --- | --- | --- |
+| SA10 α,β-unsaturated carbonyl / nitrile / sulphone | 3 | 14 | +11 spec, −3 sens |
+| SA29 aromatic mono- or dialkylamine | 5 | 8 | +3 spec, −5 sens |
+| SA4 monohaloalkene | 5 | 7 | +2 spec, −5 sens |
+| SA2b dialkyl sulfate / trialkyl phosphate | 5 | 7 | +2 spec, −5 sens |
+| SA31 aromatic diazo | 7 | 8 | +1 spec, −7 sens |
+
+Only the first is worth acting on, and for the same reason as the two above:
+**a Michael acceptor is protein-reactive, not DNA-reactive.** Thiols and
+glutathione consume it long before DNA does, which is why the identical pattern
+scores 96% precision as the sensitisation alert SS1 and 36% here. The 14
+compounds it alone condemned are acrylamide, acrylic acid, the acrylate and
+methacrylate esters, ascorbic acid, curcumin, caffeic acid, carvone, isophorone
+and the tetracyclines — none mutagenic.
+
+Two of its three actives were pyrrolizidine alkaloids, and it caught them for
+the wrong reason: what makes lasiocarpine and riddelline genotoxic is hepatic
+dehydrogenation to a pyrrolic ester, not the enoate. **SA39** now describes
+that, and keeps them. Its one Ames-negative hit, monocrotaline, is itself an
+established genotoxic hepatocarcinogen the bacterial assay misses. The third,
+acrylonitrile, is given up: it is genuinely Ames-positive through its epoxide
+and no pattern separates it from methacrylonitrile, which is not.
+
+The rows below SA10 were all rejected. Trading five or seven actives for two or
+three inactives is the wrong direction for a screening filter.
+
+**SA16 was kept against the measurement**, which is the one case here where the
+data should lose. Removing it buys 2 points of specificity, because the only
+two compounds it alone flags — urethane and methyl carbamate — are both
+Ames-negative. But urethane is the textbook Ames-negative genotoxic
+*carcinogen*: it is activated in the liver to vinyl carbamate epoxide, which a
+bacterial assay cannot model. Dropping it would fit this rulebase to the Ames
+endpoint at the expense of the endpoint it is for.
+
+Net: sensitivity 89.4% → 90.1%, specificity 56.4% → 58.9%, balanced accuracy
+72.9% → 74.5%.
+
+### Compounds the schemes never claimed to answer for
+
+The README has always said that inorganics, metals, salts and mixtures are
+outside the applicability domain of every scheme here, and that they are
+flagged rather than silently classified. The validators did not know that, and
+scored them anyway — so a deliberate refusal was being counted as a wrong
+answer. `domain_exclusion()` now reports them and they are left unscored, with
+the count and the reason printed, as the unparsable structures already were.
+
+The rule is narrower than the sentence it implements, in two ways that matter.
+
+**Metal compounds are excluded everywhere.** No SMARTS pattern in the library
+addresses a metal centre and neither tree asks a question that applies to one.
+This is what removes the two organotins, the beryllium salt and the mercurial
+from Appendix 1, and potassium dichromate from the LLNA set.
+
+**Carbon-free compounds are excluded only from the trees.** Cramer and Verhaar
+ask about organic functional groups and can say nothing about hydrazine or
+sodium nitrite. The alert sets can: SA13 *is* a hydrazine pattern and SA34 a
+peroxide one. Excluding inorganics from an alert run would be ducking, since
+potassium bromate and sodium nitrite are real mutagens this library has no
+pattern for, and they stay counted as the misses they are.
+
+**Mixtures are not excluded at all**, despite the sentence. Counting fragments
+does not identify a mixture: the reference files write racemates as two
+enantiomers in one record (DL-menthol, DL-ethionine) and commercial blends as
+their components (toluene diisocyanate), and the rules answer identically for
+each fragment. Excluding those would have quietly dropped genuine actives.
+
+Worth noting what this did *not* do. Both Cramer figures went **down** —
+91.4% → 90.9% on Appendix 1 and 96.3% → 96.2% on the food set — because the
+compounds removed were ones the tree had been getting right. The alert
+sensitivities rose, 89.4% → 90.1% for genotoxicity and 91.7% → 92.2% for
+sensitisation. A change that only ever improved the numbers would be a reason
+for suspicion.
 
 ### A label that was the wrong way round
 
@@ -389,11 +477,18 @@ Class III. Re-deriving structures would measure the drawing, not the rules.
 | Verhaar | 117 Verhaar2000 | **87.1%** | 53.4% | `verhaar.VerhaarScheme` |
 | Sensitisation | 208 LLNA | **92% sens** | 91% sens | `…SkinSensitisationPlugin` |
 | Genotoxicity | 665 ISSCAN Ames | **89% sens** | 87% sens | `mutant.BB_CarcMutRules` |
+| Non-genotox carcinogenicity | 886 comparable | — | — | `mutant.BB_CarcMutRules` |
 | Skin irritation | 129 comparable | — | — | `sicret.SicretRules` |
 | Eye irritation | 37 comparable | — | — | `eye.EyeIrritationRules` |
 
-Four of those six need reading carefully, and the caveats matter more than the
-numbers.
+These figures are deliberately scored on every record both programs answer
+for, including the metal compounds and inorganics that the validation section
+above leaves unscored — the point here is to compare two programs, and Toxtree
+answers for sodium chloride as readily as this does. That is why the Cramer
+figure reads 96.3% of 108 here and 96.2% of 106 there.
+
+Five of those seven need reading carefully, and the caveats matter more than
+the numbers.
 
 **Cramer is the one clean win.** Like for like, same file, same module. The
 reference labels are the classes stored in `foodmol.sdf`, and Toxtree 3.1.0
@@ -428,7 +523,7 @@ The compounds Toxtree still catches and this does not fell from 34 to 8.
 
 | | sensitivity | specificity | balanced acc. | precision |
 | --- | --- | --- | --- | --- |
-| ours (35 alerts) | **89%** | 58% | 73% | 67% |
+| ours (35 alerts) | **89%** | 62% | 75% | 69% |
 | Toxtree (Benigni/Bossa) | 87% | **72%** | **79%** | **75%** |
 
 Sensitivity is what this rulebase is tuned for, and 35 alerts match the full
@@ -443,6 +538,24 @@ The most interesting number in that run is neither side's: **106 of 665 (15.9%)
 are called wrong by both programs, identically.** That is the Benigni/Bossa
 approach's own floor on this data, not a defect in either implementation — and
 it is the figure no amount of work on these SMARTS patterns will move.
+
+**Non-genotoxic carcinogenicity gets its first external check**, and it comes
+with a warning about how to read it. The two agree on 84.9% of 886 compounds —
+but 673 of those are cases where *neither* fires, so the headline is mostly
+mutual silence. Among the 213 compounds where either one fires they agree on
+79, which is 37%. That is the number worth quoting, and it says the two
+rulebases are picking out substantially different compounds.
+
+The disagreements are chemically legible in both directions. This
+implementation flags 90 that Toxtree does not, nearly all of them on NG1
+(halogenated benzene or phenol) and NG2 (chlorinated alkane), which are broad:
+1,2-dichlorobenzene, chlorodibromomethane, 1,1,1-trichloroethane. Toxtree
+flags 44 that this does not, and they cluster — di-(2-ethylhexyl) adipate,
+tris(2-ethylhexyl) phosphate, sodium 2-ethylhexyl sulfate — the branched
+long-chain esters that are peroxisome proliferators. NG7 reaches only the
+phthalates and NG5 only the perfluoroalkyl acids, so that family is a real
+gap. This is the first evidence of any kind about this rulebase, which until
+now had none.
 
 **Irritation is the answer to the open question above, and it is not
 reassuring.** There are still no experimental labels, so this is agreement
@@ -518,13 +631,13 @@ mislabelled since the examples were written.
 
 | Scheme | Reference data | Result |
 | --- | --- | --- |
-| Cramer classes | 83 (Cramer Appendix 1) | 91.4% concordance |
-| Cramer classes | 108 (reference implementation) | 96.3% concordance — but see *Comparing against Toxtree*: that oracle is a historical Toxtree run, which current Toxtree reproduces 84/108 |
+| Cramer classes | 77 of 83 (Cramer Appendix 1) | 90.9% concordance |
+| Cramer classes | 108 (reference implementation) | 96.2% concordance — but see *Comparing against Toxtree*: that oracle is a historical Toxtree run, which current Toxtree reproduces 84/108 |
 | Verhaar scheme | 121 (Verhaar *et al.*) | 87.2% concordance |
-| Genotoxicity alerts | 691 (ISSCAN Ames) | 89% sensitivity, 56% specificity |
-| Sensitisation alerts | 209 (LLNA) | 92% sensitivity, 49% specificity |
+| Genotoxicity alerts | 672 of 691 (ISSCAN Ames) | 90% sensitivity, 59% specificity |
+| Sensitisation alerts | 208 of 209 (LLNA) | 92% sensitivity, 49% specificity |
 | **Irritation alerts** | **none found** | **unvalidated** — agrees with Toxtree's SICRET/eye rulebases at about chance |
-| **Non-genotoxic carcinogenicity** | **none found** | **unvalidated** |
+| **Non-genotoxic carcinogenicity** | **none found** | **unvalidated** — agrees with Toxtree on 37% of the compounds where either fires |
 
 ### Why irritation is unvalidated
 
@@ -640,8 +753,8 @@ while Class I rose to 97%/99% and Class III to 95%/100%.
 **On self-confirmation:** the Q1 membership was identified from the recorded
 paths, which include both validation sets, so that part is partly circular. The
 effect is measurable and small. On the Appendix 1 set **no compound at all** is
-decided by that list — its 91.4% is entirely structural. On the food set 24 of
-108 are; excluding them the remaining 84 score **95.2%**, against 96.3% overall.
+decided by that list — its 90.9% is entirely structural. On the food set 23 of
+106 are; excluding them the remaining 83 score **95.2%**, against 96.2% overall.
 The structural rules carry the result, not the membership.
 
 Two earlier findings still stand, and both are cases where the obvious reading

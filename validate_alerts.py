@@ -18,7 +18,7 @@ import csv
 import sys
 from collections import Counter, defaultdict
 
-from toxtree import assess, parse_structure
+from toxtree import assess, domain_exclusion, parse_structure
 
 
 def main(path: str, scheme: str, per_alert: bool = False) -> int:
@@ -27,6 +27,7 @@ def main(path: str, scheme: str, per_alert: bool = False) -> int:
 
     tp = fp = tn = fn = 0
     unparsed = 0
+    out_of_domain: list[tuple[str, str]] = []
     alert_counts: dict[str, Counter] = defaultdict(Counter)
     domain_hits: dict[str, Counter] = defaultdict(Counter)
     missed: list[dict] = []
@@ -35,6 +36,13 @@ def main(path: str, scheme: str, per_alert: bool = False) -> int:
         rec = parse_structure(r["smiles"], r.get("name") or None)
         if not rec.ok:
             unparsed += 1
+            continue
+        # Inorganics, metal compounds and mixtures are outside the domain of
+        # every rulebase here, and the app says so rather than classifying
+        # them. Scoring them would count a refusal as a miss.
+        reason = domain_exclusion(rec)
+        if reason is not None:
+            out_of_domain.append((r.get("name") or r["smiles"], reason))
             continue
         hits = getattr(assess(rec, {scheme}), scheme)
         flagged = bool(hits)
@@ -66,7 +74,17 @@ def main(path: str, scheme: str, per_alert: bool = False) -> int:
 
     print(f"{path.rsplit('/', 1)[-1]} -- {scheme} alerts")
     print(f"{n} compounds scored ({tp + fn} active, {tn + fp} inactive)"
-          + (f", {unparsed} unparsable" if unparsed else "") + "\n")
+          + (f", {unparsed} unparsable" if unparsed else "")
+          + (f", {len(out_of_domain)} out of domain" if out_of_domain else "")
+          + "\n")
+    if out_of_domain:
+        print(f"Outside the applicability domain, not scored "
+              f"({len(out_of_domain)}):")
+        for name, reason in out_of_domain[:8]:
+            print(f"  {name[:40]:40s} {reason}")
+        if len(out_of_domain) > 8:
+            print(f"  ... and {len(out_of_domain) - 8} more")
+        print()
     print("                 flagged   not flagged")
     print(f"  active        {tp:>8}{fn:>14}")
     print(f"  inactive      {fp:>8}{tn:>14}")
