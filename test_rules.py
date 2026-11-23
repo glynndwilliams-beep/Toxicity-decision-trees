@@ -341,6 +341,33 @@ def test_pro_hapten_sensitisers_and_the_esters_they_must_not_catch():
     assert "SS17" not in codes("NCCCCC(N)C(=O)O")         # lysine
 
 
+def test_peroxisome_proliferator_ester_needs_a_hydrolysable_link():
+    """NG9, and the boundary that makes it a mechanism rather than a shape.
+
+    The alert exists because the 2-ethylhexyl esters are hydrolysed to
+    2-ethylhexanol and oxidised to 2-ethylhexanoic acid, a PPAR-alpha agonist.
+    That requires a linkage that hydrolyses, so the alcohol on its own and the
+    corresponding ether must not fire: neither releases the metabolite. DEHP
+    fires NG7 and NG9 both, which is correct -- they describe one mechanism
+    from two directions.
+    """
+    def codes(smiles):
+        rec = parse_structure(smiles)
+        assert rec.ok, smiles
+        return {h.code for h in assess(rec, {"nongenotox"}).nongenotox}
+
+    assert "NG9" in codes("CCCCC(CC)COC(=O)CCCCC(=O)OCC(CC)CCCC")   # DEHA
+    assert "NG9" in codes("CCCCC(CC)COP(=O)(OCC(CC)CCCC)OCC(CC)CCCC")
+    assert "NG9" in codes("CCCCC(CC)COS(=O)(=O)[O-].[Na+]")
+    assert {"NG7", "NG9"} <= codes("CCCCC(CC)COC(=O)c1ccccc1C(=O)OCC(CC)CCCC")
+
+    assert "NG9" not in codes("CCCCC(CC)CO")                        # the alcohol
+    assert "NG9" not in codes("CCCCC(CC)COCC(CC)CCCC")              # the ether
+    assert "NG9" not in codes("CCOC(C)=O")                          # ethyl acetate
+    # a phthalate of an unbranched alcohol is NG7's business, not NG9's
+    assert codes("CCCCOC(=O)c1ccccc1C(=O)OCCCC") == {"NG7"}
+
+
 def test_non_dna_reactive_mechanisms_are_not_genotoxicity_alerts():
     """Thyroid and AhR mechanisms belong in the non-genotoxic rulebase.
 

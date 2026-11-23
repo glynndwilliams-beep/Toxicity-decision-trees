@@ -31,7 +31,7 @@ The app opens at <http://localhost:8501>.
 | **Cramer rules** | Class I / II / III structural class of oral toxicity, with the full question path |
 | **Verhaar scheme** | Aquatic mode of action (classes 1–5) plus a baseline-narcosis LC50 estimate for classes 1 and 2 |
 | **Genotoxic carcinogenicity** | 35 DNA-reactivity structural alerts |
-| **Non-genotoxic carcinogenicity** | 7 alerts for receptor-mediated, hormonal and regenerative mechanisms |
+| **Non-genotoxic carcinogenicity** | 8 alerts for receptor-mediated, hormonal and regenerative mechanisms |
 | **Skin sensitisation** | 23 mechanistic protein-binding alerts (Michael addition, Schiff base, acyl transfer, SN2, SNAr) plus the pro-haptens |
 | **Skin / eye irritation** | 10 reactivity triggers — *unvalidated, see below* |
 | **Kroes TTC** | Tiered threshold of toxicological concern, optionally compared against an exposure estimate |
@@ -48,7 +48,7 @@ LICENSE             MIT
 app.py              Streamlit interface
 toxtree/
   chem.py           parsing, descriptors, SVG depiction
-  alerts.py         the SMARTS alert library (89 alerts)
+  alerts.py         the SMARTS alert library (90 alerts)
   cramer.py         Cramer decision tree
   verhaar.py        Verhaar scheme + baseline QSARs
   engine.py         orchestration + the Kroes TTC tree
@@ -247,9 +247,10 @@ non-genotoxic set still has no reference data.
 The result is 12 false positives removed at **no cost in sensitivity at all**:
 the misses stay at 36 of 340, exactly the same compounds. Specificity goes
 53.0% → 56.4%, precision 64.8% → 66.5%, balanced accuracy 71.2% → 72.9%. The
-non-genotoxic set, which cannot be scored, was checked for shape the same way
-the irritation set is: it fires on 18.7% of the 689 unique compounds, no single
-alert above 8.7%, with the two newcomers at 2.3% and 0.9%.
+non-genotoxic set, which cannot be scored directly, was checked for shape the
+same way the irritation set is: across the 831 unique compounds of the other
+three reference sets it fires on 19.6%, no single alert above 10.0%, with the
+arrivals at 2.0% (NG6) and 0.8% (NG8).
 
 ### Counting only the alerts that actually cost something
 
@@ -540,22 +541,30 @@ approach's own floor on this data, not a defect in either implementation — and
 it is the figure no amount of work on these SMARTS patterns will move.
 
 **Non-genotoxic carcinogenicity gets its first external check**, and it comes
-with a warning about how to read it. The two agree on 84.9% of 886 compounds —
+with a warning about how to read it. The two agree on 85.2% of 886 compounds —
 but 673 of those are cases where *neither* fires, so the headline is mostly
 mutual silence. Among the 213 compounds where either one fires they agree on
-79, which is 37%. That is the number worth quoting, and it says the two
-rulebases are picking out substantially different compounds.
+82, which is **38.5%**. That is the number worth quoting, and it says the two
+rulebases are picking out substantially different compounds. This is the first
+evidence of any kind about this rulebase, which until now had none at all.
 
 The disagreements are chemically legible in both directions. This
 implementation flags 90 that Toxtree does not, nearly all of them on NG1
 (halogenated benzene or phenol) and NG2 (chlorinated alkane), which are broad:
 1,2-dichlorobenzene, chlorodibromomethane, 1,1,1-trichloroethane. Toxtree
-flags 44 that this does not, and they cluster — di-(2-ethylhexyl) adipate,
-tris(2-ethylhexyl) phosphate, sodium 2-ethylhexyl sulfate — the branched
-long-chain esters that are peroxisome proliferators. NG7 reaches only the
-phthalates and NG5 only the perfluoroalkyl acids, so that family is a real
-gap. This is the first evidence of any kind about this rulebase, which until
-now had none.
+flagged 44 that this did not, and three of those were one family — di-(2-
+ethylhexyl) adipate, tris(2-ethylhexyl) phosphate and sodium 2-ethylhexyl
+sulfate. **NG9** was written for them and recovers all three, which is what
+moved the figure above from 37% to 38.5%.
+
+That is a small gain from a clear finding, and the remaining 41 say why. They
+are not one family but four or five: the thiouracils and thioamides, where NG6
+may simply be too narrow; the hexachlorocyclohexanes and chlorinated
+ethylenes; the safroles; and the thiuram disulphides. Each needs its own
+mechanistic argument rather than a pattern fitted to a list of names, and
+none has been made here yet. The 90 in the other direction are the same
+question asked backwards: NG1 and NG2 are broad enough that they may be
+costing precision this rulebase has no data to measure.
 
 **Irritation is the answer to the open question above, and it is not
 reassuring.** There are still no experimental labels, so this is agreement

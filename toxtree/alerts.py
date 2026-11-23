@@ -183,6 +183,28 @@ NONGENOTOX: list[Alert] = [
           "[$(c1ccc2Oc3ccccc3Oc2c1),$(c1ccc(-c2ccccc2)cc1[F,Cl,Br])]",
           "nongenotox",
           "Persistent aryl-hydrocarbon receptor ligand; tumour promoter."),
+    # Comparing this rulebase against Toxtree's turned up 40 compounds it
+    # flags and this missed, and three of them were one family: di-(2-
+    # ethylhexyl) adipate, tris(2-ethylhexyl) phosphate and sodium 2-ethyl-
+    # hexyl sulfate. The shared feature is not "a branched long-chain ester"
+    # but specifically the 2-ethylhexyl group, which is also what makes DEHP
+    # the phthalate of concern in NG7 -- so this alert and that one describe
+    # one mechanism from two directions.
+    #
+    # On the comparison set a broader pattern (any branched C7+ alkyl ester)
+    # recovers the same three and costs nothing either, so the measurement
+    # cannot choose between them. The narrow one is chosen on mechanism: the
+    # ester hydrolyses to 2-ethylhexanol and thence to 2-ethylhexanoic acid,
+    # which is the PPAR-alpha agonist. A branched alcohol that is not
+    # 2-ethylhexanol has no such metabolite, and an ether of it would not
+    # hydrolyse at all, which is why a hydrolysable acyl, phosphate or
+    # sulphate linkage is required rather than any oxygen.
+    Alert("NG9", "2-ethylhexyl ester, phosphate or sulphate",
+          "[$([CX3](=[OX1])),$([PX4](=[OX1])),$([SX4](=[OX1])=[OX1])][OX2]"
+          "[CX4H2][CX4H]([CX4H2][CX4H3])[CX4H2][CX4H2][CX4H2][CX4H3]",
+          "nongenotox",
+          "Hydrolysed to 2-ethylhexanol and oxidised to 2-ethylhexanoic acid, "
+          "a PPAR-alpha agonist; hepatic peroxisome proliferation."),
 ]
 
 # --------------------------------------------------------------------------
