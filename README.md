@@ -52,6 +52,7 @@ toxtree/
   verhaar.py        Verhaar scheme + baseline QSARs
   engine.py         orchestration + the Kroes TTC tree
   reflists.py       primary metabolites + the optional curated lists
+  readacross.py     nearest reference neighbours + evidential-support index
   examples.py       30 reference structures
 test_rules.py       regression tests
 validate_cramer.py  score the Cramer tree against a reference set
@@ -251,6 +252,52 @@ was made to require divalent sulphur.
 Sensitivity is the right thing to optimise here, but it is bought with
 specificity, which fell from 68% to 51%. Balanced accuracy still improved,
 and an alert that fires is right 87% of the time.
+
+## Read-across and evidential support
+
+Every verdict above is a rule firing. On its own a Class III for
+cinnamaldehyde and a Class III for something unlike anything ever tested
+read identically, and they should not. The **Evidential support** panel
+closes that gap: for each scheme it finds the query's nearest neighbours
+in the reference sets used for validation and asks whether their
+*measured* outcomes agree with what the rules just said.
+
+It needs the reference data, which the `tools/` scripts fetch into
+`toxtree/data/`. Without it the app runs and says so in the sidebar.
+
+The index combines four components, weighted as shown:
+
+| component | weight | what it asks |
+| --- | --- | --- |
+| Concordance | 0.40 | do the nearest compounds' measured outcomes match this verdict? |
+| Similarity | 0.30 | how close is the nearest reference compound? |
+| Descriptor range | 0.15 | are MW and logP inside the reference range? |
+| Fragment novelty | 0.15 | how much of the structure never appears in the data? |
+
+Above 0.70 is reported as well supported, 0.45 to 0.70 as partly
+supported, below that as little support, with the components always shown
+separately — the single number is the least informative part.
+
+### What it is not
+
+The idea comes from VEGA's applicability domain index, but the meaning is
+deliberately different and the difference matters. VEGA scores statistical
+models, where the index asks whether a prediction interpolates or
+extrapolates from training data. These decision trees are deterministic
+rules that are **not fitted to these compounds at all**, and they answer
+identically for a molecule in the reference set and one unlike anything
+ever tested.
+
+So this is not an applicability domain in the QSAR sense. It measures how
+much checked evidence stands behind a particular answer. A low score does
+not mean the rule misfired; it means nothing in the reference data would
+have caught it if it had.
+
+The feature earned its place on first run by finding a mistake in this
+repository's own example set: the structure labelled benzo[a]pyrene was
+matching *pyrene* at similarity 1.00 and the real benzo[a]pyrene at 0.50.
+It was pyrene — C16H10 where benzo[a]pyrene is C20H12 — and had been
+mislabelled since the examples were written.
 
 ## Validation status of each scheme
 

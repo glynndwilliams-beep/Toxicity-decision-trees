@@ -315,6 +315,41 @@ def test_irritation_alerts_are_not_indiscriminate():
         assert not codes(benign), benign
 
 
+def test_read_across_support():
+    """Evidential support: nearest reference compounds and the index."""
+    from toxtree import readacross
+
+    assert isinstance(readacross.status(), dict)
+    if not readacross.available_endpoints():
+        return  # reference data not installed in this checkout
+
+    # A compound in the reference set, predicted as the data measured it,
+    # should come out well supported.
+    rec = parse_structure("Cn1cnc2c1c(=O)n(C)c(=O)n2C")        # caffeine
+    strong = readacross.support(rec.mol, "cramer", "Class III")
+    assert strong.available and strong.neighbours
+    assert strong.similarity > 0.95          # it is in the set
+    assert strong.index > 0.70 and strong.band == "well supported"
+
+    # Something unlike anything in the reference data must say so, whatever
+    # the rules decided -- this is the whole point of the panel.
+    rec = parse_structure("C1C2C3C4C1C5C2C3C45C(=O)N6CCOCC6")
+    weak = readacross.support(rec.mol, "cramer", "Class III")
+    assert weak.similarity < 0.5
+    assert weak.index < 0.45 and weak.band == "little support"
+    assert any("similar" in n for n in weak.notes)
+
+    # Concordance must respond to the verdict it is given, not ignore it.
+    rec = parse_structure("Cn1cnc2c1c(=O)n(C)c(=O)n2C")
+    agreeing = readacross.support(rec.mol, "cramer", "Class III")
+    disagreeing = readacross.support(rec.mol, "cramer", "Class I")
+    assert agreeing.concordance > disagreeing.concordance
+
+    # An endpoint with no data installed must degrade, not raise.
+    missing = readacross.support(rec.mol, "not_an_endpoint", "whatever")
+    assert not missing.available and missing.band == "no reference data"
+
+
 def test_bad_input_is_reported_not_raised():
     rec = parse_structure("not a molecule at all")
     assert not rec.ok and rec.error

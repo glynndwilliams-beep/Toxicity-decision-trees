@@ -6,7 +6,9 @@ import io
 import pandas as pd
 import streamlit as st
 
-from toxtree import SCHEME_LABELS, assess, parse_many, parse_structure, reflists
+from toxtree import (SCHEME_LABELS, assess, parse_many, parse_structure,
+                     readacross, reflists)
+from toxtree.readacross import SOURCES
 from toxtree.alerts import (
     ALL_ALERTS,
     COMPUTED,
@@ -101,6 +103,16 @@ with st.sidebar:
     rl = reflists.status()
     st.caption(f"✓ {len(reflists.PRIMARY_METABOLITES)} primary metabolites "
                "built in (Cramer Q1).")
+    ra_status = readacross.status()
+    ra_total = sum(ra_status.values())
+    if ra_total:
+        st.caption(f"✓ Read-across data loaded — {ra_total} reference "
+                   "compounds across "
+                   f"{sum(1 for v in ra_status.values() if v)} endpoints.")
+    else:
+        st.caption("Read-across data not installed, so no evidential-support "
+                   "scores. Fetch it with the scripts in `tools/`.")
+
     if rl["food_loaded"]:
         st.caption(f"✓ Food-component list loaded — {rl['food_count']} "
                    "structures, used at the Q22 question.")
@@ -272,6 +284,75 @@ with tab_single:
                                 unsafe_allow_html=True)
                     if a.verhaar.qsar:
                         st.caption(f"Baseline QSAR applied: {a.verhaar.qsar}")
+
+            # --- evidential support -------------------------------------
+            predicted_for = {}
+            if a.cramer:
+                predicted_for["cramer"] = {
+                    CLASS_I: "Class I", CLASS_II: "Class II",
+                    CLASS_III: "Class III"}[a.cramer.cramer_class]
+            if a.verhaar:
+                predicted_for["verhaar"] = (
+                    f"Class {a.verhaar.verhaar_class.split()[1]}")
+            if "genotox" in chosen:
+                predicted_for["genotox"] = ("mutagenic" if a.genotox
+                                            else "not mutagenic")
+            if "sensitisation" in chosen:
+                predicted_for["sensitisation"] = ("sensitiser"
+                                                  if a.sensitisation
+                                                  else "non-sensitiser")
+
+            usable = [e for e in readacross.available_endpoints()
+                      if e in predicted_for]
+            if usable:
+                st.subheader("Evidential support")
+                st.caption(
+                    "How much checked evidence stands behind each verdict: the "
+                    "nearest compounds in the reference sets used for "
+                    "validation, and whether their **measured** outcomes agree. "
+                    "These rules are not fitted to these compounds, so this is "
+                    "not an applicability domain in the QSAR sense — a low "
+                    "score means nothing in the reference data would have "
+                    "caught this answer if it were wrong."
+                )
+                tabs = st.tabs([SCHEME_LABELS[e].split(" (")[0] for e in usable])
+                for tab, endpoint in zip(tabs, usable):
+                    with tab:
+                        sup = readacross.support(rec.mol, endpoint,
+                                                 predicted_for[endpoint])
+                        sc1, sc2 = st.columns([2, 3], gap="large")
+                        with sc1:
+                            tone = ("v-low" if sup.index >= 0.70
+                                    else "v-mid" if sup.index >= 0.45
+                                    else "v-high")
+                            st.markdown(
+                                verdict_card(
+                                    "Support index", f"{sup.index:.2f}", tone,
+                                    f"{sup.band} · {sup.n_reference} reference "
+                                    "compounds"),
+                                unsafe_allow_html=True)
+                            st.caption(
+                                f"nearest {sup.similarity:.2f} · concordance "
+                                + (f"{sup.concordance:.2f}"
+                                   if sup.concordance is not None else "n/a")
+                                + f" · new fragments {100 * sup.novelty:.0f}%"
+                                + (" · in descriptor range" if sup.in_range
+                                   else " · **outside** descriptor range"))
+                            for note in sup.notes:
+                                st.warning(note)
+                        with sc2:
+                            st.caption(f"Nearest reference compounds "
+                                       f"({SOURCES[endpoint]['origin']})")
+                            st.dataframe(pd.DataFrame([{
+                                "Similarity": n.similarity,
+                                "Compound": n.name,
+                                "Measured": n.outcome,
+                                "Agrees": ("yes" if n.outcome.lower()
+                                           == predicted_for[endpoint].lower()
+                                           else "no"),
+                            } for n in sup.neighbours]),
+                                hide_index=True, width='stretch')
+                st.divider()
 
             hits = a.all_hits()
             if hits:
@@ -494,6 +575,23 @@ eight misses are organochlorine insecticides, and no halogen-count rule
 separates them: pentachlorophenol is Class 3 while tetrachlorophenol is
 Class 4, and heptachlor is Class 3 while endrin is Class 4. Such a rule would
 break seven compounds to fix six. The organophosphates are all correct.
+
+### Evidential support, and what it is not
+
+The **Evidential support** panel finds the query's nearest neighbours in
+the reference sets used for validation and reports whether their measured
+outcomes agree with the verdict. The index weights concordance 0.40,
+similarity 0.30, descriptor range 0.15 and fragment novelty 0.15.
+
+The idea is borrowed from VEGA's applicability domain index, but the
+meaning differs in a way worth stating. VEGA scores statistical models,
+where the question is whether a prediction interpolates or extrapolates.
+These are deterministic rules, not fitted to these compounds, and they
+answer identically for a molecule in the reference set and one unlike
+anything ever tested. So this is not an applicability domain in the QSAR
+sense: it measures how much checked evidence stands behind an answer. A
+low score does not mean the rule misfired — it means nothing in the
+reference data would have caught it if it had.
 
 ### Irritation: unvalidated, and why
 
