@@ -154,7 +154,15 @@ def parse_many(lines: Iterable[str]) -> list[MolRecord]:
 
 def compute_descriptors(mol: Chem.Mol) -> dict:
     elements = sorted({a.GetSymbol() for a in mol.GetAtoms()})
+    # Fragments handed back by GetMolFrags(sanitizeFrags=False) carry no ring
+    # perception, and asking such a molecule for NumRings() raises rather than
+    # returning zero. Reached by multi-fragment records in an SDF.
     ri = mol.GetRingInfo()
+    try:
+        ri.NumRings()
+    except RuntimeError:
+        Chem.FastFindRings(mol)
+        ri = mol.GetRingInfo()
     return {
         "formula": rdMolDescriptors.CalcMolFormula(mol),
         "mw": round(Descriptors.MolWt(mol), 3),

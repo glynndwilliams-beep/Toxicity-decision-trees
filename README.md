@@ -59,6 +59,7 @@ test_rules.py       regression tests
 validate_cramer.py  score the Cramer tree against a reference set
 validate_verhaar.py score the Verhaar scheme against a reference set
 validate_alerts.py  score an alert rulebase against experimental data
+compare_toxtree.py  three-way comparison against the Java Toxtree
 tools/
   fetch_reference.py          Cramer Appendix 1 validation set
   fetch_reference_lists.py    body/food lists + the second Cramer set
@@ -254,6 +255,124 @@ Sensitivity is the right thing to optimise here, but it is bought with
 specificity, which fell from 68% to 51%. Balanced accuracy still improved,
 and an alert that fires is right 87% of the time.
 
+## Comparing against Toxtree
+
+Everything above scores this implementation against reference data. It does not
+say how the Java [Toxtree](https://sourceforge.net/projects/toxtree/) answers
+the same compounds, which is a different question: a miss both programs make is
+the *scheme's* limit, while a miss only this one makes is a gap here.
+
+`compare_toxtree.py` answers it. Toxtree has an undocumented headless mode, so
+it can be driven over a file and its verdicts read back:
+
+```powershell
+java -jar Toxtree-3.1.0.1851.jar --noui -i in.sdf -o out.sdf -m toxTree.tree.cramer.CramerRules
+```
+
+The output SDF carries the class *and* the decision path, in the same format
+`analyse_tree.py` parses — so paths can now be generated for any compound, not
+only the ~190 that happen to be recorded in the test fixtures.
+
+Toxtree is GPL-licensed and is not distributed here. Fetch the plain zip (no
+installer, no Maven build needed) from SourceForge, unpack it, and point the
+script at it with `TOXTREE_JAR`; `TOXTREE_JAVA` sets the JRE if `java` is not on
+the path. Toxtree needs Java 7 or newer — use 11 rather than 17+, since the
+stack is 2014-era CDK and strong module encapsulation can break its reflective
+plugin loading.
+
+```powershell
+$env:TOXTREE_JAR = "C:\path\to\Toxtree\Toxtree-3.1.0.1851.jar"
+```
+
+```powershell
+.venv\Scripts\python.exe compare_toxtree.py cramer path\to\foodmol.sdf
+```
+
+Structures are handed to both sides as **the molblock drawn in the file**, never
+as regenerated SMILES. That is not fussiness: Toxtree answers two Cramer
+questions by InChI lookup against curated lists, and the same compound drawn
+differently resolves differently. Ascorbic acid drawn by RDKit answers Q1 *yes*
+and lands in Class I; as drawn in `foodmol.sdf` it answers *no* and lands in
+Class III. Re-deriving structures would measure the drawing, not the rules.
+
+### Results
+
+| scheme | set | ours | Toxtree | module |
+| --- | --- | --- | --- | --- |
+| Cramer | 108 foodmol | **96.3%** | 77.8% | `toxTree.tree.cramer.CramerRules` |
+| Verhaar | 117 Verhaar2000 | **87.1%** | 53.4% | `verhaar.VerhaarScheme` |
+| Sensitisation | 208 LLNA | 76% sens | **91% sens** | `…SkinSensitisationPlugin` |
+| Genotoxicity | 665 ISSCAN Ames | **89% sens** | 87% sens | `mutant.BB_CarcMutRules` |
+| Skin irritation | 129 comparable | — | — | `sicret.SicretRules` |
+| Eye irritation | 37 comparable | — | — | `eye.EyeIrritationRules` |
+
+Four of those six need reading carefully, and the caveats matter more than the
+numbers.
+
+**Cramer is the one clean win.** Like for like, same file, same module. The
+reference labels are the classes stored in `foodmol.sdf`, and Toxtree 3.1.0
+reproduces only 84 of its own 108 stored labels — so that oracle is a
+*historical* run of the program, not the program as it ships. 22 compounds are
+right here and wrong in current Toxtree; 2 the other way (cystine among them).
+
+**Verhaar is not like for like, so the 34-point gap is mostly not merit.**
+Toxtree 3.1.0 ships only `verhaar.VerhaarScheme`, the original 1992 scheme; the
+`verhaar2` plugin carrying the Enoch (2008) refinements is absent from the
+distribution even though it is listed in `toxtree-plugins.properties` — and
+`Verhaar2000.sdf` is verhaar2's own test fixture. This implementation follows
+the refined scheme. Toxtree answers Class 5, *cannot classify*, for 30 of the
+117, the phenols among them, which is precisely what the refinements were made
+to fix. The script prints this caveat on every Verhaar run.
+
+**Sensitisation is a loss, and a useful one.** Toxtree catches 91% of the LLNA
+sensitisers against 76% here, at 46% specificity against 51% — a better trade
+on this set. 34 compounds it flags and this does not: 1-naphthol,
+2-mercaptobenzothiazole, 3-methylisoeugenol, 3-dimethylaminopropylamine among
+them. That is a concrete work list, not a score.
+
+**Genotoxicity is a near-draw on sensitivity and a loss on specificity.** Over
+665 graded ISSCAN compounds:
+
+| | sensitivity | specificity | balanced acc. | precision |
+| --- | --- | --- | --- | --- |
+| ours (38 alerts) | **89%** | 55% | 72% | 65% |
+| Toxtree (Benigni/Bossa) | 87% | **72%** | **79%** | **75%** |
+
+Sensitivity is what this rulebase is tuned for, and 38 alerts match the full
+rulebase on it — 89% against 87%. The cost is 119 compounds flagged here that
+Toxtree leaves alone, which is where the 17 points of specificity go. Toxtree's
+module also runs semi-empirical QM descriptors per molecule, making it far
+slower, and reports an internal tree error on a minority of records.
+
+The most interesting number in that run is neither side's: **106 of 665 (15.9%)
+are called wrong by both programs, identically.** That is the Benigni/Bossa
+approach's own floor on this data, not a defect in either implementation — and
+it is the figure no amount of work on these SMARTS patterns will move.
+
+**Irritation is the answer to the open question above, and it is not
+reassuring.** There are still no experimental labels, so this is agreement
+between two programs with neither known to be right — but they agree on 50% of
+the 129 compounds SICRET will answer for, and 60% of the 37 the eye rulebase
+will. Toxtree declines to answer ("Unknown") for 80 and 172 respectively,
+because its rules want physicochemical properties the file does not carry.
+Chance-level agreement is what the README predicted from first principles: a
+SMARTS reactivity list and a logP/MW/pKa decision system are not two
+implementations of one thing. Treat that tab accordingly.
+
+### What the comparison found in this code
+
+Feeding real SDF files through the rulebases surfaced two defects that the
+SMILES-only test suite could not reach:
+
+- `compute_descriptors` raised `RingInfo not initialized` on any multi-fragment
+  record, because `GetMolFrags(sanitizeFrags=False)` returns fragments without
+  ring perception and `NumRings()` throws rather than returning zero. Any SDF
+  containing a salt crashed the batch tab. Fixed in `chem.py`.
+- `parse_structure` strips its input before testing for `V2000`, so a molblock
+  whose title line is blank — the common case in machine-written SDFs — has its
+  first line removed and fails to parse. `compare_toxtree.py` fills the title in
+  from the record name; the underlying parser is still strict about it.
+
 ## Read-across and evidential support
 
 Every verdict above is a rule firing. On its own a Class III for
@@ -305,11 +424,11 @@ mislabelled since the examples were written.
 | Scheme | Reference data | Result |
 | --- | --- | --- |
 | Cramer classes | 83 (Cramer Appendix 1) | 91.4% concordance |
-| Cramer classes | 108 (reference implementation) | 96.3% concordance |
+| Cramer classes | 108 (reference implementation) | 96.3% concordance — but see *Comparing against Toxtree*: that oracle is a historical Toxtree run, which current Toxtree reproduces 84/108 |
 | Verhaar scheme | 121 (Verhaar *et al.*) | 87.2% concordance |
 | Genotoxicity alerts | 691 (ISSCAN Ames) | 89% sensitivity |
 | Sensitisation alerts | 209 (LLNA) | 76% sensitivity |
-| **Irritation alerts** | **none found** | **unvalidated** |
+| **Irritation alerts** | **none found** | **unvalidated** — agrees with Toxtree's SICRET/eye rulebases at about chance |
 | **Non-genotoxic carcinogenicity** | **none found** | **unvalidated** |
 
 ### Why irritation is unvalidated
