@@ -232,6 +232,7 @@ def test_q18_structural_features():
     assert fires("C=CCOC(=O)CCCCCC")          # allyl heptanoate      (c)
     assert fires("C=CCO")                      # allyl alcohol         (c)
     assert fires("C=CCSC")                     # allyl methyl sulphide (d)
+    assert fires("C=CCSSCC=C")                 # diallyl disulphide    (d)
     assert fires("C=CC=O")                     # acrolein              (e)
     assert fires("C=CC(=O)O")                  # acrylic acid          (f)
     assert fires("CC#CC")                      # acetylenic            (g)
@@ -279,6 +280,16 @@ def test_q18_structural_features():
     assert not fires("OCCC(O)C")               # butane-1,3-diol
     assert not fires("CC(=O)OC(C)c1ccccc1")    # 1-phenylethyl acetate
     assert not fires("CCCCCOC(=O)CCC")         # pentyl butyrate
+    # Branches (c) and (d) need the TERMINAL vinyl. Dropping it was measured
+    # and breaks retinol, a reference Class I, fixing nothing; it would also
+    # claim these terpene and cinnamyl allylic alcohols, which the scheme
+    # treats as innocuous because they oxidise at the carbinol and are
+    # excreted. Nothing in either set supports the loose reading.
+    assert not fires("OCC=C(C)C=CC=C(C)C=CC1=C(C)CCCC1(C)C")  # retinol
+    assert not fires("CC=CCO")                 # crotyl alcohol
+    assert not fires("OCC=Cc1ccccc1")          # cinnamyl alcohol
+    assert not fires("CC(C)=CCCC(C)=CCO")      # geraniol
+    assert not fires("CC(C)=CCOC(C)=O")        # prenyl acetate
 
     # Branch (i). BHT is the worked example: a phenol with a tert-butyl on
     # each ortho position, and no other functional group.

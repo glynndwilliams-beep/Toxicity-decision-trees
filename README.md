@@ -1209,6 +1209,48 @@ warning and cost 6.5 points to ignore, and (a) where it has nothing to say.
 A project that only reported the first of those would look much more
 decisive than the evidence actually is.
 
+### Branches (c) and (d), the allyl pair
+
+(c) "allyl alcohol or its acetal, ketal or ester derivative" and (d) "allyl
+mercaptan, an allyl sulphide, an allyl thioester or allyl amine" are the same
+pattern on different heteroatoms: a terminal vinyl, then a CH2, then O or
+S/N. Each loosens the same three ways — drop "terminal", drop the CH2, or
+both — so six readings were measured.
+
+| reading | Appendix 1 | food set | result |
+| --- | --- | --- | --- |
+| **c1** any C=C, keep the CH2 | unchanged | 102/106 → **101/106** | 0 fixed, **1 broken** |
+| **c2** terminal vinyl, any carbon | unchanged | unchanged | moves nothing |
+| **c3** both (any allylic alcohol or ester) | unchanged | 102/106 → **101/106** | 0 fixed, **1 broken** |
+| **d1, d2, d3** | unchanged | unchanged | move nothing |
+
+**The casualty is retinol**, reference Class I, pushed to Class II. It is a
+polyene primary alcohol — `…C=C–CH2–OH` — so dropping "terminal" from the
+vinyl catches it, and it is the *only* compound in either set that
+distinguishes c1 or c3 from the shipped reading. One discriminating compound
+is thin evidence, and it is stated here as thin; but it is the only evidence
+there is, and it votes against.
+
+It also agrees with a decision this file already made on other grounds. The
+terminal vinyl is what separates allyl alcohol, which is epoxidised on the
+double bond, from the terpene and cinnamyl allylic alcohols, which are
+oxidised at the carbinol to an acid and excreted — the same reasoning that
+makes `P_HARMLESS_AR_SUBST` require an oxidised terminus, and the reason
+cinnamaldehyde is Class I. Loosening (c) would catch crotyl alcohol,
+cinnamyl alcohol, geraniol and prenyl acetate as well; none of those is in
+either reference set, so none of them is measured, but all four are
+compounds the scheme treats as innocuous.
+
+**Branch (d) is inert under every loosening**, and unlike branch (a) the
+reason is not that its compounds are decided earlier: there simply are no
+non-terminal allylic sulphides or amines in 183 compounds. The strict
+reading does real work here — diallyl disulphide, the garlic sulphide,
+answers yes through (d) — but nothing in the data constrains how the branch
+should be worded beyond that.
+
+Six readings, one break, five with no power. Branches (c) and (d) keep the
+paper's wording.
+
 Two things fell out of implementing it that are worth more than the
 percentage point.
 
