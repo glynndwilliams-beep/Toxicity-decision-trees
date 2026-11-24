@@ -895,39 +895,51 @@ question can be asked of structures the recorded paths never covered.
 
 Run over Appendix 1, Toxtree gets six compounds right that this
 implementation gets wrong. **Three of them turn on the same question, Q18**,
-and its behaviour across both reference sets is unambiguous:
+and its behaviour is unambiguous wherever it is reached:
 
 | | n | class |
 | --- | --- | --- |
-| Q18 answered **yes** | 5 | all Class II |
-| Q18 answered **no** | 64 | all Class I |
+| Q18 answered **yes** | 15 | all Class II |
+| Q18 answered **no** | 216 | all Class I |
 
-It is the terminal Class I/II gate on the branch this implementation exits
+It is the terminal Class I/II gate on the branches this implementation exits
 early, which is precisely where the Class II accuracy is being lost. So the
-answer is yes: the missing questions are worth implementing, and Q18 is the
-one to do first.
+question is pivotal, and worth real effort.
 
-What Q18 *asks* took one wrong hypothesis to find. The obvious guess, given
-that answering yes yields Class II, was the food-list lookup that Q22 already
-performs. The data refuses it: none of the five yes-answers is in the food
-list, while 18 of the 64 no-answers are. That is the wrong way round for a
-food test.
+**It has not been possible to recover what it asks, and the attempt is worth
+recording because two plausible answers were tested and both failed.**
 
-Reading the two groups together gives it. The yes-answers are 1,3-butanediol,
-acetoin, BHT, 2-heptanone and allyl heptanoate — flavour and additive
-chemicals. The no-answers on the same branch are, almost without exception,
-fatty acids and amino acids: alanine, valine, leucine, isoleucine, aspartic
-and glutamic acid, and essentially every straight-chain fatty acid from
-hexanoic to tetracosanoic, saturated and unsaturated alike, plus ethanol,
-propylene glycol and the simple diacids. Q18 separates **normal dietary and
-metabolic constituents from everything else**, and it is a membership
-question rather than a structural one — which is why no SMARTS pattern was
-going to find it, and why implementing it will need the curated lists this
-project already fetches rather than a new rule.
+*It is not a list lookup.* Since answering yes yields Class II, the obvious
+guess was the food-list membership that Q22 already performs. Direct test
+refuses it: none of the yes-answers is in the food list or the
+body-constituent list, but only 23 of 64 no-answers are either, so absence
+predicts nothing.
 
-That is as far as this goes for now: the question is identified and priced,
-not implemented. Adding a terminal gate to a branch is a change with real
-regression risk, and it belongs in its own pass with the oracle in place.
+*It is not the allylic/α,β-unsaturated test the yes-group suggests.*
+Widening the evidence from 5 positives to 15 — by running Toxtree's Cramer
+module over the Ames, LLNA and body-constituent files as well — produced the
+largest coherent subgroup: allyl alcohol, acrolein, acrylic acid, allyl
+isovalerate, allyl heptanoate and diallyl phthalate. Implementing just that
+fragment as a Class I→II gate was simulated against both reference sets
+before writing any code, and it **fixes one compound and breaks nine**:
+Appendix 1 would fall 90.9% → 87.0% and the food set 96.2% → 91.5%. Rejected.
+
+The reason both failed is visible once the paths are grouped. Q18 is one
+question reached from two different branches — the aliphatic route
+(`19Y,20Y,21N,18`) and the carbocyclic one (`19N,23Y,27Y,28N,30N,18`) — and
+its fifteen yes-answers span allyl alcohol and acrolein, two hindered phenols
+(BHT and its hydroxymethyl analogue), two α-hydroxy or α-diketones (acetoin,
+1-phenyl-1,2-propanedione), 2-heptanone, 1,3-butanediol, estradiol and
+oxytetracycline. No single structural test plausibly covers that set, and
+fifteen positives are too few to separate one from the no-group of 216 by
+search.
+
+So Class II stays at 43% on Appendix 1, and the three compounds that turn on
+Q18 stay wrong. That is a worse outcome than implementing something, and a
+better one than implementing a guess — this file already records three rules
+that were asserted without evidence and contradicted by the data when it
+arrived. What would settle it is the question's text from the 1978 paper,
+which is a reading problem rather than a computational one.
 
 ## Licence
 
