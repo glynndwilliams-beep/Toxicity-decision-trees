@@ -938,8 +938,55 @@ So Class II stays at 43% on Appendix 1, and the three compounds that turn on
 Q18 stay wrong. That is a worse outcome than implementing something, and a
 better one than implementing a guess — this file already records three rules
 that were asserted without evidence and contradicted by the data when it
-arrived. What would settle it is the question's text from the 1978 paper,
-which is a reading problem rather than a computational one.
+arrived.
+
+### What Q18 actually asks
+
+The question text settles it, and it was a reading problem rather than a
+computational one. The JRC's analysis of the Cramer scheme (EUR 24898 EN,
+2011) reproduces it in full, which is an openly published source rather than
+a program:
+
+> Is the substance one of the following:
+> **(a)** a vicinal diketone; or a ketone or ketal of a ketone attached to a
+> terminal vinyl group; **(b)** a secondary alcohol or ester of a secondary
+> alcohol attached to a terminal vinyl group; **(c)** allyl alcohol or its
+> acetal, ketal or ester derivative; **(d)** allyl mercaptan, an allyl
+> sulphide, an allyl thioester or allyl amine; **(e)** acrolein, a
+> methacrolein or their acetals; **(f)** acrylic or methacrylic acid;
+> **(g)** an acetylenic compound; **(h)** an acyclic aliphatic ketone, ketal
+> or ketoalcohol with no other functional groups and with four or more
+> carbons on either side of the keto group; **(i)** a substance in which the
+> functional groups are all sterically hindered
+
+Yes gives Class II, no gives Class I, which matches all 231 observed answers.
+
+**It is a nine-branch list, which is why no single rule was ever going to fit
+it.** The fifteen yes-answers stop being heterogeneous once they are sorted
+against it: allyl alcohol and the three allyl esters are (c), acrolein is
+(e), acrylic acid is (f), 1-phenyl-1,2-propanedione is (a) — and BHT, its
+hydroxymethyl analogue, estradiol and oxytetracycline are (i), the branch no
+amount of structure-gazing would have produced.
+
+Two warnings come with it, and both bear on how it should be implemented.
+
+**Branch (i) is unsafe.** "Sterically hindered" is undefined in the paper,
+and Phillips *et al.* (1987) deleted the phrase as ambiguous when they
+revised the scheme, re-ordering Q18 to Q21 at the same time.
+
+**Toxtree's own Q18 is known to diverge from the paper**, which matters more
+here than it looks. Bhatia *et al.*, comparing Toxtree against the OECD
+Toolbox and expert judgement, report that most of their classification
+discrepancies came from differing readings of 18h, and that Toxtree returns
+yes for *any* secondary alcohol, which the original does not intend. That
+shows in the data collected here: 1,3-butanediol is called 18Y although it
+has no terminal vinyl group and so satisfies neither (b) nor (h).
+
+So the oracle cannot adjudicate this one. It scores movement toward or away
+from Toxtree, and on Q18 Toxtree is the thing that is wrong — reproducing
+its behaviour would raise the agreement figure and make the implementation
+worse. Any Q18 work has to be scored against the reference classes
+themselves, with the comparison used only to find candidates.
 
 ## Licence
 
