@@ -241,6 +241,14 @@ def test_q18_structural_features():
     # ...and the boundaries that keep it from becoming a different question
     assert not fires("C=CC(=O)OC")             # acrylate ester: Cramer keeps
     assert not fires("O=C(O)C(=O)O")           # oxalic acid is not a diketone
+    # Branch (a) keeps the paper's wording on both of its clauses. The loose
+    # readings were measured and move no verdict in either set, because the
+    # compounds that would distinguish them are all decided before Q18 --
+    # so these pin wording that measurement could not adjudicate.
+    assert not fires("CC(=O)C(=O)O")           # pyruvic acid: not a diketone
+    assert not fires("O=CC=O")                 # glyoxal: a dialdehyde
+    assert not fires("CC(=O)CC(C)=O")          # 2,4-pentanedione: not vicinal
+    assert not fires("CC(=C)C1CC=C(C)C(=O)C1")  # carvone: not a terminal vinyl
     assert fires("CCCCCC(C)=O")                # 2-heptanone           (h)
     assert fires("CCCCC(C)=O")                 # 2-hexanone: four on one side
     # ...but the four-carbon count still has to be met, so the short methyl

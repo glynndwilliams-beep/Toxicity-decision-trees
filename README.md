@@ -1167,6 +1167,48 @@ documented advocate in Toxtree's own behaviour, and loses five compounds.
 Only measuring each one separately distinguishes those two cases, and the
 first of them is the one that nearly went unexamined.
 
+### Branch (a), where the data has no opinion at all
+
+Branch (a) — "a vicinal diketone; or a ketone or ketal of a ketone attached
+to a terminal vinyl group" — has two clauses and so three independent ways
+to loosen it. All three were measured, and then all three together:
+
+| reading | newly matches | Appendix 1 | food set |
+| --- | --- | --- | --- |
+| **a1** any vicinal dicarbonyl, dropping "carbon on the outside" | oxalic acid, pyruvic acid, glyoxal | unchanged | unchanged |
+| **a2** a ketone on any C=C, dropping "terminal vinyl" | mesityl oxide, carvone | unchanged | unchanged |
+| **a3** any diketone, 1,2 or 1,3, dropping "vicinal" | 2,4-pentanedione | unchanged | unchanged |
+| **a4** all three at once | all of the above | unchanged | unchanged |
+
+**Not one verdict moves, in either set, under any of them** — including the
+loosest reading the sentence can bear. That is a weaker result than it looks
+and it is worth saying why rather than filing it as "no change".
+
+Six compounds across the two sets are newly matched by a4, and **every one of
+them is already decided before Q18 is reached, or rescued after it**:
+
+| compound | what decides it |
+| --- | --- |
+| `Cltcy` (ref III) | Q9, a benzene derivative with a non-innocuous substituent |
+| `DHAc` (ref III) | Q6, a simple lactone |
+| `Blu2` (ref I) | reaches Q18 but is rescued by Q33, the sulphonate-salt question |
+| oxalic acid, phylloquinone (ref II) | already Class II by other routes |
+| menadione (ref I) | already Class II, and already one of the food set's four errors |
+
+So the question Q18 branch (a) would answer never gets asked of a compound
+whose class depends on the answer. **These two reference sets cannot
+adjudicate branch (a)'s wording at all**, loose or strict: the measurement
+has no power here, which is not the same as the strict reading being
+vindicated. The paper's wording is kept because it is the paper's, and
+because nothing was found to prefer over it — not because 183 compounds
+endorsed it.
+
+That is three different outcomes from three branches measured the same way:
+(h) where the data overturned a confident argument, (b) where it confirmed a
+warning and cost 6.5 points to ignore, and (a) where it has nothing to say.
+A project that only reported the first of those would look much more
+decisive than the evidence actually is.
+
 Two things fell out of implementing it that are worth more than the
 percentage point.
 
