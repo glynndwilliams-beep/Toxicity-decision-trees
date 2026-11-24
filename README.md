@@ -1117,6 +1117,56 @@ about Toxtree's behaviour across a larger set than these 183 compounds, and
 it stands. What is refuted is the specific reason this project gave for
 siding with them, which was an assertion dressed as a finding.
 
+### Branch (b), where the loose reading is the one that is wrong
+
+Having had the strict reading of (h) overturned by measurement, the obvious
+next question is whether the strict reading of **(b)** — "a secondary
+alcohol, or its ester, attached to a terminal vinyl group" — is another
+unexamined assumption. It is not, and this is where Bhatia *et al.*'s
+complaint turns out to be exactly right: they report that Toxtree answers
+yes for *any* secondary alcohol, which the paper plainly does not intend.
+
+Three readings were measured, loosest first:
+
+| reading | Appendix 1 | food set | verdict |
+| --- | --- | --- | --- |
+| **b1** any secondary alcohol or its ester (Toxtree's) | 73/77 → **68/77** | unchanged | 0 fixed, **5 broken** |
+| **b2** secondary alcohol/ester on any C=C, not only a terminal vinyl | unchanged | unchanged | moves nothing |
+| **b3** any alcohol/ester on a terminal vinyl, dropping "secondary" | unchanged | unchanged | moves nothing |
+
+**b1 costs 6.5 percentage points and buys nothing.** All five casualties are
+reference Class I compounds pushed to Class II, and they are precisely the
+innocuous secondary alcohols and esters Cramer puts in Class I:
+
+| label | compound |
+| --- | --- |
+| `PG` | propylene glycol |
+| `BG` | butane-1,3-diol |
+| `PGDB` | propylene glycol dibenzoate |
+| `MPCA` | 1-phenylethyl acetate |
+| `Actn` | acetoin, the α-hydroxy ketone |
+
+So this project's data independently reproduces the over-call Bhatia *et al.*
+describe, and puts a number on it. The terminal vinyl group is the whole
+point of the branch: it is what makes the alcohol allylic and so a candidate
+for epoxidation, and without it the branch stops being a question about
+reactivity and becomes a tax on a hydroxyl.
+
+**b2 and b3 move nothing in either set**, which is a different kind of
+answer and worth separating from the first. Widening "terminal vinyl" to any
+C=C, or dropping "secondary", produces no evidence at all — no compound in
+183 distinguishes them from the shipped reading. The strict wording is kept
+because it is the paper's, not because the data chose it; anyone who later
+finds a compound that discriminates should reopen this, and there is nothing
+here to stop them.
+
+Taken with the branch (h) result above, the pattern is not "the loose reading
+wins" or "the strict reading wins". For (h) the strict reading was carrying
+an argument and no evidence, and lost. For (b) the loose reading has a
+documented advocate in Toxtree's own behaviour, and loses five compounds.
+Only measuring each one separately distinguishes those two cases, and the
+first of them is the one that nearly went unexamined.
+
 Two things fell out of implementing it that are worth more than the
 percentage point.
 

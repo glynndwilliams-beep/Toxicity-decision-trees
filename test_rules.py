@@ -262,6 +262,14 @@ def test_q18_structural_features():
     # rather than endorsing it.
     assert fires("CC(C)(O)CC(C)=O")            # diacetone alcohol
     assert not fires("CCO")                    # ethanol
+    # Branch (b) needs the terminal vinyl. Reading it as any secondary
+    # alcohol or ester is what Bhatia et al. report Toxtree doing; measured
+    # here it breaks five reference Class I compounds and fixes none, so
+    # these four pin the rejection.
+    assert fires("C=CC(O)CC")                  # 1-penten-3-ol         (b)
+    assert not fires("OCC(O)C")                # propylene glycol
+    assert not fires("OCCC(O)C")               # butane-1,3-diol
+    assert not fires("CC(=O)OC(C)c1ccccc1")    # 1-phenylethyl acetate
     assert not fires("CCCCCOC(=O)CCC")         # pentyl butyrate
 
     # Branch (i). BHT is the worked example: a phenol with a tert-butyl on
