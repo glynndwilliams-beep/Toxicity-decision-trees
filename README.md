@@ -102,10 +102,10 @@ salt and a mercurial):
 | | → I | → II | → III | n |
 | --- | --- | --- | --- | --- |
 | **Reference I** | **31** | 0 | 1 | 32 |
-| **Reference II** | 3 | **4** | 0 | 7 |
+| **Reference II** | 2 | **5** | 0 | 7 |
 | **Reference III** | 1 | 1 | **36** | 38 |
 
-**92.2% overall** (Class I 97%, Class II 57%, Class III 95%), with 5 under-calls
+**93.5% overall** (Class I 97%, Class II 71%, Class III 95%), with 4 under-calls
 and 1 over-call. `validate_cramer.py` prints every disagreement together with
 the decision path that caused it, so each can be judged rather than counted.
 
@@ -729,7 +729,7 @@ mislabelled since the examples were written.
 
 | Scheme | Reference data | Result |
 | --- | --- | --- |
-| Cramer classes | 77 of 83 (Cramer Appendix 1) | 92.2% concordance |
+| Cramer classes | 77 of 83 (Cramer Appendix 1) | 93.5% concordance |
 | Cramer classes | 108 (reference implementation) | 96.2% concordance — but see *Comparing against Toxtree*: that oracle is a historical Toxtree run, which current Toxtree reproduces 84/108 |
 | Verhaar scheme | 121 (Verhaar *et al.*) | 87.2% concordance |
 | Genotoxicity alerts | 672 of 691 (ISSCAN Ames) | 90% sensitivity, 59% specificity |
@@ -868,7 +868,7 @@ while Class I rose to 97%/99% and Class III to 95%/100%.
 **On self-confirmation:** the Q1 membership was identified from the recorded
 paths, which include both validation sets, so that part is partly circular. The
 effect is measurable and small. On the Appendix 1 set **no compound at all** is
-decided by that list — its 92.2% is entirely structural. On the food set 23 of
+decided by that list — its 93.5% is entirely structural. On the food set 23 of
 106 are; excluding them the remaining 83 score **95.2%**, against 96.2% overall.
 The structural rules carry the result, not the membership.
 
@@ -973,7 +973,9 @@ Two warnings come with it, and both bear on how it should be implemented.
 
 **Branch (i) is unsafe.** "Sterically hindered" is undefined in the paper,
 and Phillips *et al.* (1987) deleted the phrase as ambiguous when they
-revised the scheme, re-ordering Q18 to Q21 at the same time.
+revised the scheme, re-ordering Q18 to Q21 at the same time. It is now
+implemented under a definition this project had to choose for itself; the
+choice, and the three looser readings that were rejected, are below.
 
 **Toxtree's own Q18 is known to diverge from the paper**, which matters more
 here than it looks. Bhatia *et al.*, comparing Toxtree against the OECD
@@ -991,20 +993,53 @@ with the comparison used only to find candidates.
 
 ### Implementing it
 
-Branches (a) to (h) are implemented; (i) is not, for the reason above. On
-Appendix 1 that takes **Class II from 43% to 57%** and the set overall from
-90.9% to **92.2%**, with Class I and Class III unchanged and the food set
-unchanged at 96.2% — one compound gained, none lost. The gate fires on three
-compounds across both reference sets and is right on all three.
+Branches (a) to (h) went in first. On Appendix 1 that took **Class II from
+43% to 57%** and the set overall from 90.9% to **92.2%**, with Class I and
+Class III unchanged and the food set unchanged at 96.2% — one compound
+gained, none lost. The gate fired on three compounds across both reference
+sets and was right on all three.
 
-A modest gain, and the ceiling is visible: of the three Appendix 1 compounds
-that turn on Q18, only allyl heptanoate is recovered. BHT is a branch (i)
-case and stays wrong by choice. 2-heptanone stays wrong because branch (h) is
-read strictly here — four or more carbons on *both* sides of the keto group,
-which 2-heptanone fails with one — and the loose reading that would catch it
-is exactly what Bhatia *et al.* identify as the source of Toxtree's
-over-calling. Buying one compound by adopting a reading reported to be wrong
-is not a trade worth making.
+**Branch (i) followed, under a definition the paper does not supply.** Since
+"sterically hindered" is undefined, the rule had to invent one, so it was
+made as narrow as the single worked example allows: a functional group counts
+as hindered when its attachment position is **flanked on two sides by a
+quaternary carbon** — the 2,6-di-tert-butylphenol pattern of BHT — and the
+word *all* in the question is enforced, so one free functional group anywhere
+in the molecule disqualifies it.
+
+Simulated against both sets before `cramer.py` was touched, the way the
+rejected allylic fragment was. It moves exactly one compound:
+
+| set | before | after | moved |
+| --- | --- | --- | --- |
+| Appendix 1 | 71/77 (92.2%) | **72/77 (93.5%)** | BHT, Class I → II, reference II |
+| food set | 102/106 (96.2%) | 102/106 (96.2%) | none |
+
+Class II on Appendix 1 goes from 57% to **71%**; Class I and Class III are
+untouched, and nothing in either set regresses. One fixed, none broken, which
+is the only shape of result that was going to be accepted.
+
+**Three looser readings were tried and rejected.** Allowing tert-alkyl
+flanks (isopropyl, so 2,6-diisopropylphenol would qualify) as well as fully
+quaternary ones changed **no verdict in either set**, so it buys nothing and
+the narrower reading is kept. The two readings that would also reach
+di-tert-butyl-4-hydroxymethylphenol — the other known Toxtree (i) case — both
+require treating a bare benzylic `-CH2OH` as hindered because the ring it
+hangs off is hindered. That contradicts *all*: the same relaxation makes a
+molecule with a hindered phenol **and a free benzoic acid** answer yes, which
+is plainly not what the question asks. So that compound is a deliberate miss,
+and so are estradiol and oxytetracycline, whose hindrance (if that is even
+the right reading of why Cramer put them here) is conformational rather than
+a matter of flanking quaternary carbons. Reaching them would mean contorting
+the pattern until it stopped meaning anything.
+
+The ceiling is still visible: of the four Appendix 1 compounds that turn on
+Q18, allyl heptanoate and BHT are now recovered and 2-heptanone stays wrong,
+because branch (h) is read strictly here — four or more carbons on *both*
+sides of the keto group, which 2-heptanone fails with one — and the loose
+reading that would catch it is exactly what Bhatia *et al.* identify as the
+source of Toxtree's over-calling. Buying one compound by adopting a reading
+reported to be wrong is not a trade worth making.
 
 Two things fell out of implementing it that are worth more than the
 percentage point.

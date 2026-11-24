@@ -160,12 +160,12 @@ def _is_carbohydrate(mol: Chem.Mol) -> bool:
 # Class I. Branches (a) to (h) are implemented here.
 #
 # Branch (i), "a substance in which the functional groups are all sterically
-# hindered", is deliberately left out. It is undefined in the paper, and
-# Phillips et al. (1987) deleted the phrase as ambiguous when they revised
-# the scheme. Implementing it would mean inventing a definition and then
-# measuring the invention, which is the failure mode this file exists to
-# avoid. The cost is known and stated in the README: BHT and its relatives
-# are (i) cases and stay in Class I.
+# hindered", is undefined in the paper, and Phillips et al. (1987) deleted
+# the phrase as ambiguous when they revised the scheme. It is implemented
+# here under a definition this file had to choose rather than read off the
+# paper: see _q18_all_hindered. The definition was simulated against both
+# reference sets before being written in, and kept only because it moved
+# one compound and that compound moved the right way.
 Q18_BRANCHES = (
     # A diketone, so both carbonyls must carry carbon on the outside. The
     # looser [CX3](=O)[CX3]=O also matches oxalic acid and the other vicinal
@@ -242,6 +242,100 @@ def _q18_large_ketone(mol: Chem.Mol) -> bool:
     return True
 
 
+def _is_quaternary_carbon(atom: Chem.Mol) -> bool:
+    """A fully alkylated sp3 carbon: the central carbon of a tert-butyl group.
+
+    Heteroatom substitution disqualifies, so the quaternary carbon of a
+    hemiketal or an amino acid does not count as a blocking group.
+    """
+    if atom.GetSymbol() != "C" or atom.GetIsAromatic():
+        return False
+    if atom.GetHybridization() != Chem.HybridizationType.SP3:
+        return False
+    neighbours = list(atom.GetNeighbors())
+    if any(n.GetSymbol() not in ("C", "H") for n in neighbours):
+        return False
+    return sum(1 for n in neighbours if n.GetSymbol() == "C") == 4
+
+
+# Groups that count as "functional" for branch (i), each with the index of
+# the match atom the group hangs off. The list is deliberately generous: the
+# question says *all* groups must be hindered, so a group this list misses
+# can only make the branch fire too often.
+_Q18_HINDERED_GROUPS = (
+    ("[OX2H]", 0),                     # alcohol or phenol
+    ("[CX3](=[OX1])[OX2H,OX1-]", 0),   # carboxylic acid
+    ("[CX3H1]=[OX1]", 0),              # aldehyde
+    ("[#6][CX3](=[OX1])[#6]", 1),      # ketone
+    ("[CX3](=[OX1])[OX2][#6]", 0),     # ester
+    ("[NX3;!$(N[CX3]=[OX1])]", 0),     # amine
+    ("[NX3][CX3](=[OX1])[#6]", 0),     # amide
+    ("[#6][OX2][#6]", 1),              # ether
+    ("[SX2]", 0),                      # thiol or thioether
+    ("[CX2]#[CX2]", 0),
+    ("[NX1]#[CX2]", 0),                # nitrile
+)
+
+
+def _q18_all_hindered(mol: Chem.Mol) -> bool:
+    """Branch (i): every functional group in the substance is hindered.
+
+    Cramer does not define "sterically hindered", and Phillips et al. struck
+    the phrase out for that reason, so the definition below is this file's
+    choice and not the paper's. It is read as narrowly as the one worked
+    example allows: a group is hindered when its attachment position is
+    flanked on *two* sides by a quaternary carbon, which is the
+    2,6-di-tert-butylphenol pattern of BHT. The flanking carbon may be the
+    neighbouring atom itself or a substituent on it, so an ortho tert-butyl
+    on a benzene ring blocks the phenol between two of them.
+
+    The word "all" in the question is enforced: one free functional group
+    anywhere in the molecule disqualifies it, so a hindered phenol carrying
+    an unhindered carboxylic acid elsewhere stays in Class I.
+
+    Measured, before it was written here, against both reference sets: it
+    moves one compound, BHT, from Class I to its reference Class II, and
+    breaks nothing in either set. Allowing tert-alkyl (isopropyl) flanks as
+    well as fully quaternary ones was tried and changed no verdict in either
+    set, so the narrower reading is kept. The looser readings that would also
+    reach di-tert-butyl-4-hydroxymethylphenol all require treating a bare
+    benzylic -CH2OH as hindered, which contradicts "all"; that compound is
+    therefore a known miss, recorded in the README.
+    """
+    sites: list[tuple[int, set[int]]] = []
+    for smarts, anchor in _Q18_HINDERED_GROUPS:
+        patt = Chem.MolFromSmarts(smarts)
+        for match in mol.GetSubstructMatches(patt):
+            sites.append((match[anchor], set(match)))
+    if not sites:
+        return False
+
+    for anchor, group in sites:
+        atom = mol.GetAtomWithIdx(anchor)
+        if atom.GetSymbol() == "C":
+            attachment, blocked = anchor, group
+        else:
+            # A heteroatom group (-OH, -NH2, -SH) hangs off its own carbon.
+            carbons = [n.GetIdx() for n in atom.GetNeighbors()
+                       if n.GetSymbol() == "C"]
+            if len(carbons) != 1:
+                return False
+            attachment, blocked = carbons[0], group | {anchor}
+
+        seen = blocked | {attachment}
+        flanks = 0
+        for nb in mol.GetAtomWithIdx(attachment).GetNeighbors():
+            if nb.GetIdx() in seen or nb.GetSymbol() == "H":
+                continue
+            if _is_quaternary_carbon(nb) or any(
+                    _is_quaternary_carbon(n2) for n2 in nb.GetNeighbors()
+                    if n2.GetIdx() not in seen):
+                flanks += 1
+        if flanks < 2:
+            return False
+    return True
+
+
 def q18_feature(mol: Chem.Mol) -> str | None:
     """Which branch of Q18 the substance answers yes on, if any."""
     for letter, description, smarts in Q18_BRANCHES:
@@ -250,6 +344,9 @@ def q18_feature(mol: Chem.Mol) -> str | None:
     if _q18_large_ketone(mol):
         return ("(h) acyclic aliphatic ketone with four or more carbons on "
                 "both sides of the keto group")
+    if _q18_all_hindered(mol):
+        return ("(i) every functional group is sterically hindered, each "
+                "flanked by two quaternary carbons")
     return None
 
 

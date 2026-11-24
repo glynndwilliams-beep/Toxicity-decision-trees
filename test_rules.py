@@ -207,10 +207,11 @@ def test_q18_structural_features():
     """Cramer's Q18, the gate that turns a Class I branch into Class II.
 
     Implemented from the question's own wording as reproduced in the JRC
-    analysis of the scheme, branches (a) to (h). Branch (i), "all functional
-    groups sterically hindered", is left out: it is undefined in the paper
-    and Phillips et al. deleted it as ambiguous, so BHT is a known and
-    deliberate miss rather than an oversight.
+    analysis of the scheme, branches (a) to (i). Branch (i), "all functional
+    groups sterically hindered", is undefined in the paper and Phillips et
+    al. deleted it as ambiguous, so the definition tested below is this
+    implementation's own: a group is hindered when its attachment position
+    is flanked by two quaternary carbons, and *every* group must be.
 
     Branch (h) is read strictly, as four or more carbons on *both* sides of
     the keto group. The loose reading is where Toxtree is reported to
@@ -240,9 +241,25 @@ def test_q18_structural_features():
     assert not fires("CCO")                    # ethanol
     assert not fires("CCCCCOC(=O)CCC")         # pentyl butyrate
 
+    # Branch (i). BHT is the worked example: a phenol with a tert-butyl on
+    # each ortho position, and no other functional group.
+    assert fires("Cc1cc(C(C)(C)C)c(O)c(C(C)(C)C)c1")       # BHT
+    assert fires("CC(C)(C)c1cccc(C(C)(C)C)c1O")  # 2,6-di-tert-butylphenol
+    assert not fires("Oc1ccccc1")              # an unhindered phenol
+    assert not fires("CC(C)c1cccc(C(C)C)c1O")  # isopropyl is not quaternary
+    assert not fires("CC(C)(C)CO")             # one flank only: neopentanol
+    # "All" is enforced: the phenol is hindered, the benzoic acid is not.
+    assert not fires("CC(C)(C)c1cc(C(=O)O)cc(C(C)(C)C)c1O")
+    # The same reading makes di-tert-butyl-4-hydroxymethylphenol a miss: its
+    # benzylic -CH2OH is free. Toxtree calls it (i); this does not, and the
+    # looser rule that would reach it broke the word "all" above.
+    assert not fires("CC(C)(C)c1cc(CO)cc(C(C)(C)C)c1O")
+
     # the gate only intercepts verdicts that would otherwise be Class I
     assert cls("C=CCOC(=O)CCCCCC") == CLASS_II
     assert cls("CCCCCOC(=O)CCC") == CLASS_I
+    assert cls("Cc1cc(C(C)(C)C)c(O)c(C(C)(C)C)c1") == CLASS_II   # BHT
+    assert cls("Oc1ccccc1") == CLASS_I
 
 
 def test_against_the_toxtree_oracle():
