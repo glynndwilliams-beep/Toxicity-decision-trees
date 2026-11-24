@@ -213,9 +213,13 @@ def test_q18_structural_features():
     implementation's own: a group is hindered when its attachment position
     is flanked by two quaternary carbons, and *every* group must be.
 
-    Branch (h) is read strictly, as four or more carbons on *both* sides of
-    the keto group. The loose reading is where Toxtree is reported to
-    over-call, and it would pull in every methyl ketone.
+    Branch (h) is read as written, as four or more carbons on *one* side of
+    the keto group. The strict "both sides" reading shipped first, on the
+    argument that the loose one is where Toxtree over-calls and would pull
+    in every methyl ketone. Measurement killed that argument: the loose
+    reading adds one compound across both reference sets and breaks none,
+    and it does not reach the short methyl ketones at all, which the
+    boundary assertions below pin.
     """
     def cls(smiles):
         rec = parse_structure(smiles)
@@ -237,7 +241,26 @@ def test_q18_structural_features():
     # ...and the boundaries that keep it from becoming a different question
     assert not fires("C=CC(=O)OC")             # acrylate ester: Cramer keeps
     assert not fires("O=C(O)C(=O)O")           # oxalic acid is not a diketone
-    assert not fires("CCCCCC(C)=O")            # 2-heptanone: one side is C1
+    assert fires("CCCCCC(C)=O")                # 2-heptanone           (h)
+    assert fires("CCCCC(C)=O")                 # 2-hexanone: four on one side
+    # ...but the four-carbon count still has to be met, so the short methyl
+    # ketones stay out. This is what the "every methyl ketone" objection to
+    # the loose reading got wrong.
+    assert not fires("CC(C)=O")                # acetone
+    assert not fires("CCC(C)=O")               # 2-butanone
+    assert not fires("CCCC(C)=O")              # 2-pentanone: three on one side
+    assert not fires("CC(C)C(C)=O")            # 3-methyl-2-butanone
+    assert not fires("CCCC(=O)CC")             # 3-hexanone: C3 and C2
+    # "No other functional groups" is what bounds branch (h), not the carbon
+    # count: raspberry ketone has a four-carbon side but a ring, and is a
+    # reference Class I. Relaxing the acyclic condition breaks it, which is
+    # measured in the README.
+    assert not fires("O=C(C)CCc1ccc(O)cc1")    # raspberry ketone (HBA)
+    # Known widening, pinned so it cannot move unnoticed: diacetone alcohol
+    # reaches four carbons by branching, not chain length, and now answers
+    # yes. No reference compound tests it, so this records the behaviour
+    # rather than endorsing it.
+    assert fires("CC(C)(O)CC(C)=O")            # diacetone alcohol
     assert not fires("CCO")                    # ethanol
     assert not fires("CCCCCOC(=O)CCC")         # pentyl butyrate
 

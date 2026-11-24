@@ -102,10 +102,10 @@ salt and a mercurial):
 | | → I | → II | → III | n |
 | --- | --- | --- | --- | --- |
 | **Reference I** | **31** | 0 | 1 | 32 |
-| **Reference II** | 2 | **5** | 0 | 7 |
+| **Reference II** | 1 | **6** | 0 | 7 |
 | **Reference III** | 1 | 1 | **36** | 38 |
 
-**93.5% overall** (Class I 97%, Class II 71%, Class III 95%), with 4 under-calls
+**94.8% overall** (Class I 97%, Class II 86%, Class III 95%), with 3 under-calls
 and 1 over-call. `validate_cramer.py` prints every disagreement together with
 the decision path that caused it, so each can be judged rather than counted.
 
@@ -758,7 +758,7 @@ mislabelled since the examples were written.
 
 | Scheme | Reference data | Result |
 | --- | --- | --- |
-| Cramer classes | 77 of 83 (Cramer Appendix 1) | 93.5% concordance |
+| Cramer classes | 77 of 83 (Cramer Appendix 1) | 94.8% concordance |
 | Cramer classes | 108 (reference implementation) | 96.2% concordance — but see *Comparing against Toxtree*: that oracle is a historical Toxtree run, which current Toxtree reproduces 84/108 |
 | Verhaar scheme | 121 (Verhaar *et al.*) | 87.2% concordance |
 | Genotoxicity alerts | 672 of 691 (ISSCAN Ames) | 90% sensitivity, 59% specificity |
@@ -897,7 +897,7 @@ while Class I rose to 97%/99% and Class III to 95%/100%.
 **On self-confirmation:** the Q1 membership was identified from the recorded
 paths, which include both validation sets, so that part is partly circular. The
 effect is measurable and small. On the Appendix 1 set **no compound at all** is
-decided by that list — its 93.5% is entirely structural. On the food set 23 of
+decided by that list — its 94.8% is entirely structural. On the food set 23 of
 106 are; excluding them the remaining 83 score **95.2%**, against 96.2% overall.
 The structural rules carry the result, not the membership.
 
@@ -1062,13 +1062,60 @@ the right reading of why Cramer put them here) is conformational rather than
 a matter of flanking quaternary carbons. Reaching them would mean contorting
 the pattern until it stopped meaning anything.
 
-The ceiling is still visible: of the four Appendix 1 compounds that turn on
-Q18, allyl heptanoate and BHT are now recovered and 2-heptanone stays wrong,
-because branch (h) is read strictly here — four or more carbons on *both*
-sides of the keto group, which 2-heptanone fails with one — and the loose
-reading that would catch it is exactly what Bhatia *et al.* identify as the
-source of Toxtree's over-calling. Buying one compound by adopting a reading
-reported to be wrong is not a trade worth making.
+### Branch (h), and an argument of mine that measurement destroyed
+
+Branch (h) — "an acyclic aliphatic ketone, ketal or ketoalcohol with no other
+functional groups and with four or more carbons on either side of the keto
+group" — shipped first under the **strict** reading: four or more carbons on
+*both* sides. The justification written into this README and into the code
+was that the loose reading is what Bhatia *et al.* identify as the source of
+Toxtree's Q18 over-calling, and that it "would pull in every methyl ketone".
+Buying one compound by adopting a reading reported to be wrong, it said, is
+not a trade worth making.
+
+**Half of that was false, and measuring it was what showed it.** The loose
+reading does not come near every methyl ketone, because the four-carbon
+requirement still has to be met on the one side:
+
+| compound | strict | loose |
+| --- | --- | --- |
+| acetone, 2-butanone, 2-pentanone | no | **no** |
+| 3-methyl-2-butanone, 3-hexanone | no | **no** |
+| 2-hexanone, 2-heptanone, 2-octanone | no | **yes** |
+| nonan-5-one | yes | yes |
+
+What the loose reading actually adds is the methyl ketones from 2-hexanone
+upward — which is the class of large, poorly metabolised ketones the question
+is *about*. Measured on both sets:
+
+| set | strict | loose | moved |
+| --- | --- | --- | --- |
+| Appendix 1 | 72/77 (93.5%) | **73/77 (94.8%)** | 2-heptanone, Class I → II, reference II |
+| food set | 102/106 (96.2%) | 102/106 (96.2%) | none |
+
+One fixed, none broken; Class II on Appendix 1 goes 71% → **86%**. And the
+strict reading turns out to fire on **no compound in either reference set at
+all**, so it was carrying a confident justification and zero evidence. The
+"every methyl ketone" claim was never checked against anything before it was
+written down — the same failure this file documents three times over, made
+once more in a passage arguing for rigour.
+
+Two things keep this honest rather than a simple win. **The restriction that
+bounds branch (h) is "no other functional groups", not the carbon count.**
+Dropping that as well was measured and rejected: it breaks raspberry ketone
+(`HBA`, 4-(4-hydroxyphenyl)butan-2-one, reference Class I), which has a
+four-carbon side and is kept out only by the acyclic condition — one gained,
+one lost. **And the loose reading widens the branched ketoalcohols with
+nothing to check them against:** diacetone alcohol reaches four carbons
+through two branch methyls rather than chain length, and now answers yes
+where it previously answered no. Neither reference set contains it, so that
+verdict is unmeasured, not confirmed. It is pinned in `test_rules.py` so it
+cannot change unnoticed.
+
+Bhatia *et al.*'s warning is not refuted by any of this — their complaint is
+about Toxtree's behaviour across a larger set than these 183 compounds, and
+it stands. What is refuted is the specific reason this project gave for
+siding with them, which was an assertion dressed as a finding.
 
 Two things fell out of implementing it that are worth more than the
 percentage point.

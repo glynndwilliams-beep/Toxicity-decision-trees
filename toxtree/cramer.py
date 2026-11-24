@@ -198,15 +198,42 @@ Q18_BRANCHES = (
 
 
 def _q18_large_ketone(mol: Chem.Mol) -> bool:
-    """Branch (h): an acyclic aliphatic ketone with a long chain either side.
+    """Branch (h): an acyclic aliphatic ketone with a long chain on one side.
 
-    "Four or more carbons on either side of the keto group" is read strictly,
-    as four on *both* sides. Bhatia et al. report that the looser reading is
-    where Toxtree's Q18 over-calls, and the strict one is what makes this a
-    question about large, poorly metabolised ketones rather than about every
-    methyl ketone. "No other functional groups" is taken as: carbon, hydrogen
-    and oxygen only, acyclic, and no oxygen function beyond the keto group
-    itself and at most one hydroxyl (the "ketoalcohol" the question allows).
+    "Four or more carbons on either side of the keto group" is read as
+    written: four on *one* side suffices. This reverses the strict reading
+    (four on *both* sides) that this file shipped first, and the reversal was
+    forced by measurement, not by rereading the sentence.
+
+    The strict reading was justified here on the grounds that the loose one
+    is where Bhatia et al. report Toxtree's Q18 over-calling, and that it
+    would otherwise catch "every methyl ketone". The second half of that is
+    simply false, and measuring it said so: the four-carbon requirement still
+    excludes acetone, 2-butanone, 2-pentanone and 3-methyl-2-butanone, and
+    the loose reading adds only the methyl ketones from 2-hexanone upward --
+    which is precisely the class of large, poorly metabolised ketones the
+    question is about. Across both reference sets it fires on exactly one
+    compound that the strict reading missed, 2-heptanone, whose reference
+    class is II; it breaks nothing in either set. The strict reading fires on
+    no compound in either set at all, so it was carrying its justification
+    and no evidence.
+
+    Bhatia et al.'s warning is still live, and this rule is bounded by the
+    rest of the question rather than by the carbon count: "no other
+    functional groups" is taken as carbon, hydrogen and oxygen only, acyclic,
+    a single ketone, and no oxygen function beyond the keto group itself and
+    at most one hydroxyl (the "ketoalcohol" the question allows). Dropping
+    that restriction as well was measured and rejected: it breaks raspberry
+    ketone, 4-(4-hydroxyphenyl)butan-2-one, a reference Class I that the
+    acyclic condition is what keeps out, for the one compound it gains.
+
+    What the loose reading does widen, and what no reference compound tests,
+    is the branched ketoalcohols: diacetone alcohol reaches four carbons on
+    one side through two branch methyls rather than through chain length,
+    and it answers yes here where the strict reading said no. Neither
+    reference set contains it, so that verdict is unmeasured rather than
+    confirmed, and it is recorded in the README as the loose reading's known
+    exposure.
     """
     if any(a.GetSymbol() not in ("C", "H", "O") for a in mol.GetAtoms()):
         return False
@@ -237,9 +264,11 @@ def _q18_large_ketone(mol: Chem.Mol) -> bool:
                 carbons += 1
             stack.extend(n.GetIdx() for n in atom.GetNeighbors()
                          if n.GetIdx() not in seen)
-        if carbons < 4:
-            return False
-    return True
+        # One side reaching four carbons is enough; see the docstring for
+        # why the "both sides" reading was measured and dropped.
+        if carbons >= 4:
+            return True
+    return False
 
 
 def _is_quaternary_carbon(atom: Chem.Mol) -> bool:
@@ -343,7 +372,7 @@ def q18_feature(mol: Chem.Mol) -> str | None:
             return f"({letter}) {description}"
     if _q18_large_ketone(mol):
         return ("(h) acyclic aliphatic ketone with four or more carbons on "
-                "both sides of the keto group")
+                "one side of the keto group and no other functional groups")
     if _q18_all_hindered(mol):
         return ("(i) every functional group is sterically hindered, each "
                 "flanked by two quaternary carbons")
