@@ -1237,9 +1237,11 @@ double bond, from the terpene and cinnamyl allylic alcohols, which are
 oxidised at the carbinol to an acid and excreted — the same reasoning that
 makes `P_HARMLESS_AR_SUBST` require an oxidised terminus, and the reason
 cinnamaldehyde is Class I. Loosening (c) would catch crotyl alcohol,
-cinnamyl alcohol, geraniol and prenyl acetate as well; none of those is in
-either reference set, so none of them is measured, but all four are
-compounds the scheme treats as innocuous.
+cinnamyl alcohol, geraniol and prenyl acetate as well. **None of those four
+is in either reference set**, so that argument is chemical reasoning and not
+a measurement, and the assertions pinning them in `test_rules.py` say so on
+their own line. Retinol is the only one of the five with a reference label,
+and it is the only one that counts as evidence.
 
 **Branch (d) is inert under every loosening**, and unlike branch (a) the
 reason is not that its compounds are decided earlier: there simply are no

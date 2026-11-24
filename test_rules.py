@@ -281,15 +281,22 @@ def test_q18_structural_features():
     assert not fires("CC(=O)OC(C)c1ccccc1")    # 1-phenylethyl acetate
     assert not fires("CCCCCOC(=O)CCC")         # pentyl butyrate
     # Branches (c) and (d) need the TERMINAL vinyl. Dropping it was measured
-    # and breaks retinol, a reference Class I, fixing nothing; it would also
-    # claim these terpene and cinnamyl allylic alcohols, which the scheme
-    # treats as innocuous because they oxidise at the carbinol and are
-    # excreted. Nothing in either set supports the loose reading.
+    # and breaks retinol -- a reference Class I, and the only compound in
+    # either set that tests the loose reading -- while fixing nothing.
     assert not fires("OCC=C(C)C=CC=C(C)C=CC1=C(C)CCCC1(C)C")  # retinol
-    assert not fires("CC=CCO")                 # crotyl alcohol
-    assert not fires("OCC=Cc1ccccc1")          # cinnamyl alcohol
-    assert not fires("CC(C)=CCCC(C)=CCO")      # geraniol
-    assert not fires("CC(C)=CCOC(C)=O")        # prenyl acetate
+    # The four below have NO reference label: neither set contains them, so
+    # these assertions record what this implementation does, on chemical
+    # reasoning (an allylic alcohol oxidised at the carbinol is excreted,
+    # which is why P_HARMLESS_AR_SUBST wants an oxidised terminus) that
+    # nothing here has measured. That reasoning is a hypothesis. This file
+    # has three times pinned an expectation that encoded its author's
+    # assumption rather than a fact, so they are labelled, not trusted: if
+    # a reference label ever contradicts one, the label wins and the
+    # assertion goes.
+    assert not fires("CC=CCO")                 # crotyl alcohol  (unmeasured)
+    assert not fires("OCC=Cc1ccccc1")          # cinnamyl alcohol (unmeasured)
+    assert not fires("CC(C)=CCCC(C)=CCO")      # geraniol        (unmeasured)
+    assert not fires("CC(C)=CCOC(C)=O")        # prenyl acetate  (unmeasured)
 
     # Branch (i). BHT is the worked example: a phenol with a tert-butyl on
     # each ortho position, and no other functional group.
