@@ -586,10 +586,14 @@ SMILES-only test suite could not reach:
   record, because `GetMolFrags(sanitizeFrags=False)` returns fragments without
   ring perception and `NumRings()` throws rather than returning zero. Any SDF
   containing a salt crashed the batch tab. Fixed in `chem.py`.
-- `parse_structure` strips its input before testing for `V2000`, so a molblock
-  whose title line is blank — the common case in machine-written SDFs — has its
-  first line removed and fails to parse. `compare_toxtree.py` fills the title in
-  from the record name; the underlying parser is still strict about it.
+- `parse_structure` stripped its input before testing for `V2000`, so a molblock
+  whose title line is blank had that line removed, every following line shifted
+  by one, and the block failed to parse. This was not an edge case: a molblock's
+  title is blank unless a writer fills it in, and RDKit's own `MolToMolBlock`
+  leaves it empty — so *every* RDKit-generated molblock pasted into the app was
+  rejected. Fixed in `chem.py`: the input is classified before it is touched,
+  and a molblock has only its trailing end stripped. The title line, when a
+  writer did fill it in, now names the record.
 
 ## Read-across and evidential support
 

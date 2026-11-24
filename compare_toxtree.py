@@ -280,13 +280,6 @@ def sdf_blocks(path: pathlib.Path):
             else:
                 i += 1
         if mol_lines or fields:
-            # A molblock's title line may be blank, and parse_structure()
-            # strips its input before looking for "V2000", which shifts the
-            # block and makes it unparsable. Fill the title in from the
-            # record's own name: it is metadata, not structure.
-            if mol_lines and not mol_lines[0].strip():
-                mol_lines[0] = (fields.get("NAME") or fields.get("Name")
-                                or fields.get("Names") or "mol").strip() or "mol"
             yield "\n".join(mol_lines), fields
 
 

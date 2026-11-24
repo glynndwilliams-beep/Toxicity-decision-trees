@@ -195,6 +195,41 @@ def test_class_two_discrimination():
     assert cls("CCO") == CLASS_I                                   # ethanol
 
 
+def test_molblock_with_a_blank_title_line_parses():
+    """A molblock's title line is usually blank, and that must still parse.
+
+    parse_structure() used to strip its input before deciding what it was
+    looking at. A molblock's first line is the title and is very often empty
+    -- RDKit's own MolToMolBlock writes it that way -- so stripping deleted
+    it, shifted every following line, and the block failed to parse. Pasting
+    any RDKit-generated molblock into the app hit this.
+    """
+    from rdkit import Chem
+
+    block = Chem.MolToMolBlock(Chem.MolFromSmiles("CCO"))
+    assert block.split("\n")[0].strip() == "", "test assumes a blank title"
+
+    for label, text, ident in (
+            ("blank title", block, None),
+            ("named title", "ethanol\n" + block.split("\n", 1)[1], None),
+            ("explicit identifier", block, "my ethanol"),
+            ("trailing whitespace", block + "\n\n  ", None)):
+        rec = parse_structure(text, ident)
+        assert rec.ok, f"{label}: {rec.error}"
+        assert rec.smiles == "CCO", label
+
+    # the title names the record when there is one, and never the whole block
+    assert parse_structure(block).identifier == "molblock"
+    assert parse_structure("ethanol\n" + block.split("\n", 1)[1]
+                           ).identifier == "ethanol"
+
+    # the other input forms are unaffected
+    assert parse_structure("CCO").ok
+    assert parse_structure("InChI=1S/C2H6O/c1-2-3/h3H,2H2,1H3").ok
+    assert not parse_structure("   ").ok
+    assert not parse_structure("not a molecule").ok
+
+
 def test_question_order_and_parsing_edge_cases():
     """Ordering and input quirks that silently produced wrong classes."""
     def cls(smiles):

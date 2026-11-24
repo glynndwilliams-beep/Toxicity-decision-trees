@@ -98,15 +98,28 @@ def strip_counterions(mol: Chem.Mol) -> tuple[Chem.Mol, list[str]]:
 
 def parse_structure(text: str, identifier: str | None = None) -> MolRecord:
     """Parse SMILES, InChI or a molblock into a sanitised RDKit molecule."""
-    raw = (text or "").strip()
+    text = text or ""
+    # A molblock's first line is its title and is very often blank -- RDKit's
+    # own MolToMolBlock writes it that way, and so do most SDF writers.
+    # Stripping leading whitespace deletes that line, which shifts every line
+    # after it, so the counts line arrives where the program line is expected
+    # and the block will not parse. Decide what this is before touching it,
+    # and for a molblock strip only the trailing end.
+    looks_like_molblock = "\n" in text and ("V2000" in text or "V3000" in text)
+    raw = text.rstrip() if looks_like_molblock else text.strip()
+    if looks_like_molblock and not identifier:
+        # The title line names the structure when the writer bothered to fill
+        # it in; falling back to the whole block would make a useless label.
+        title = raw.split("\n", 1)[0].strip()
+        identifier = title or "molblock"
     ident = identifier or raw
-    if not raw:
+    if not raw.strip():
         return MolRecord(ident, raw, None, "empty input")
 
     mol = None
     if raw.lower().startswith("inchi="):
         mol = Chem.MolFromInchi(raw, sanitize=False)
-    elif "\n" in raw and ("V2000" in raw or "V3000" in raw):
+    elif looks_like_molblock:
         mol = Chem.MolFromMolBlock(raw, sanitize=False)
     else:
         mol = Chem.MolFromSmiles(raw, sanitize=False)
