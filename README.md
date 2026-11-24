@@ -1253,6 +1253,54 @@ should be worded beyond that.
 Six readings, one break, five with no power. Branches (c) and (d) keep the
 paper's wording.
 
+### Branches (e) and (f), and two branches that no reference compound tests
+
+(e) "acrolein, a methacrolein or their acetals" and (f) "acrylic or
+methacrylic acid" both name specific compounds, so the only way to loosen
+them is to drop the names and keep the functional class.
+
+| reading | Appendix 1 | food set | result |
+| --- | --- | --- | --- |
+| **e1** any α,β-unsaturated aldehyde | 73/77 → **71/77** | unchanged | 0 fixed, **2 broken** |
+| **e2** e1 plus the matching acetals | 73/77 → **71/77** | unchanged | 0 fixed, **2 broken** |
+| **f1** any α,β-unsaturated acid | 73/77 → **72/77** | 102/106 → **98/106** | 0 fixed, **5 broken** |
+| **f2** acrylic/methacrylic acid *and its esters* | unchanged | unchanged | no power (see below) |
+| **f3** any α,β-unsaturated acid or ester | 73/77 → **72/77** | 102/106 → **98/106** | 0 fixed, **5 broken** |
+
+**e1 breaks exactly the two compounds the acrolein episode was about.** The
+casualties are cinnamaldehyde (`Cnal`) and trans-2-hexenal (`tr2H`), both
+reference Class I. This README already records acrolein being pinned wrongly
+twice — once to Class III on the assumption that hexenal and cinnamaldehyde
+were "the same functional class", then corrected — and the resolution was
+that branch (e) *names* acrolein and requires the terminal vinyl that only
+acrolein and methacrolein have. Loosening (e) to the whole enal class would
+undo that resolution and make the same mistake a third time, in a third
+direction. The acetals in e2 add nothing either way.
+
+**f1 is the most expensive reading measured in this whole exercise**: five
+compounds, all reference Class I, all correct before the change. One is
+`MlcA`, an unsaturated diacid in Appendix 1; the other four are the
+unsaturated fatty acids in the food set — docosenoic, docosapentaenoic,
+eicosenoic and hexadecenoic. An α,β-unsaturated acid group is simply not a
+hazard signal on its own, and these four are ordinary dietary fat.
+
+**Neither branch (f) nor branch (g) fires on a single compound in either
+scored set**, which is the result worth keeping from this pass. There is no
+acrylic acid, no acrylate and no triple bond anywhere in the 183 compounds.
+So:
+
+- the f2 reading — keep the terminal vinyl, add the esters, which is the one
+  change here with an actual argument behind it, since Cramer assigns
+  acrylic acid to Class II but leaves the acrylate esters in Class I and the
+  JRC report calls that an inconsistency — **cannot be tested at all**;
+- branch **(g)**, "an acetylenic compound", is **entirely unvalidated**. It
+  is already the loosest reading possible (any C≡C), so there is nothing to
+  loosen, and nothing in the data to confirm or contradict it either.
+
+That is two of Q18's nine branches resting on the paper's wording alone.
+Branch (h)'s strict reading was in the same position until it was measured
+and lost, so this is recorded as a gap rather than as a reassurance.
+
 Two things fell out of implementing it that are worth more than the
 percentage point.
 

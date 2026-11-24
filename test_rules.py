@@ -241,6 +241,17 @@ def test_q18_structural_features():
 
     # ...and the boundaries that keep it from becoming a different question
     assert not fires("C=CC(=O)OC")             # acrylate ester: Cramer keeps
+    # Branches (e) and (f) name specific compounds, and loosening them to
+    # the whole functional class was measured as the worst trade in the Q18
+    # work: the enal reading breaks these two reference Class I compounds,
+    # and the unsaturated-acid reading breaks five.
+    assert not fires("CCCC=CC=O")              # trans-2-hexenal, ref I
+    assert not fires("O=CC=Cc1ccccc1")         # cinnamaldehyde, ref I
+    assert not fires("OC(=O)C=CC(=O)O")        # unsaturated diacid, ref I
+    # No reference label for these three; they record behaviour, not fact.
+    assert not fires("CC=CC=O")                # crotonaldehyde  (unmeasured)
+    assert not fires("CC=CC=CC(=O)O")          # sorbic acid     (unmeasured)
+    assert not fires("CCCCCCCCC=CCCCCCCCC(=O)O")  # oleic acid   (unmeasured)
     assert not fires("O=C(O)C(=O)O")           # oxalic acid is not a diketone
     # Branch (a) keeps the paper's wording on both of its clauses. The loose
     # readings were measured and move no verdict in either set, because the
