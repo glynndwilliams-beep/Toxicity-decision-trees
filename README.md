@@ -654,12 +654,41 @@ nongenotox/Safrole: alerting -> no alert (Toxtree says alerting, away from Toxtr
 ```
 
 — and passed again once the rule was restored. The fixture currently holds
-**2624 verdicts** across seven schemes; 3 compounds were dropped because their
-SMILES round trip would not reproduce the molblock answer, and 40 because
-Toxtree returned no record for them.
+**2704 verdicts** across seven schemes; 41 compounds were dropped because
+Toxtree returned no record for them, and 3 because their canonical SMILES
+would not parse back. None was dropped for the other reason the build guards
+against, a verdict that differs between the molblock and the round-tripped
+SMILES.
 
-Like everything else `tools/` produces, the fixture is GPL-derived and is not
-committed. Without it the test reports itself skipped rather than failing.
+### The fixture is local, and the test is honest about that
+
+Like everything else `tools/` produces, the fixture is GPL-derived and
+`.gitignore` excludes the whole `toxtree/data/` directory, so it never
+travels with the repository. It exists only on a machine that also has the
+Java Toxtree install.
+
+**A fresh clone therefore passes the whole suite with the oracle group
+reporting itself skipped**, rather than failing on a file it cannot have:
+
+```
+     (skipped: toxtree/data/toxtree_oracle.csv not built)
+  ok  test_against_the_toxtree_oracle
+```
+
+That is deliberate, and it is worth being clear about what it costs. For
+anyone without the fixture the regression guard is simply *inactive* — the
+suite still checks every hand-written expectation, but nothing is watching
+for the quiet verdict drift across 2704 compounds that this fixture exists to
+catch. A green run on a fresh clone is not evidence that no verdict has
+moved; it is evidence that nothing checked. To activate it, install Toxtree
+as described above and run `tools/build_oracle.py`, which takes roughly
+twelve minutes.
+
+The consequence for contributors: a rule change that moves verdicts will pass
+CI-style runs elsewhere and fail only for whoever holds the fixture. So the
+fixture has to be rebuilt deliberately, by the person making the change, and
+the moved verdicts read before they are accepted — which is the discipline
+the rest of this section is about.
 
 ### What the comparison found in this code
 
