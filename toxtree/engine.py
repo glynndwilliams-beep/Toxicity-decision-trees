@@ -28,7 +28,13 @@ SCHEME_LABELS = {
     "genotox": "Structural alerts for genotoxic carcinogenicity",
     "nongenotox": "Structural alerts for non-genotoxic carcinogenicity",
     "sensitisation": "Skin sensitisation (protein-binding mechanisms)",
-    "irritation": "Skin and eye irritation / corrosion",
+    # Deliberately not "irritation". These alerts flag reactive functional
+    # groups; they do not predict irritancy or corrosivity, and measurement
+    # says so -- they agree with Toxtree's SICRET and BfR eye rulebases at
+    # about chance. The published approach to local irritation is largely
+    # physicochemical and needs measured melting point, solubility and pKa,
+    # none of which this app can compute. See the Method notes.
+    "irritation": "Reactive group flags (local effects)",
     "ttc": "Kroes TTC decision tree",
 }
 
@@ -75,10 +81,10 @@ class Assessment:
     def irritation_verdict(self) -> str:
         n = len(self.irritation)
         if n == 0:
-            return "No alert"
+            return "None flagged"
         if n >= 3:
-            return "Alerting — multiple irritation triggers"
-        return "Alerting"
+            return "Flagged — multiple reactive groups"
+        return "Flagged"
 
     def all_hits(self) -> list[AlertHit]:
         return self.genotox + self.nongenotox + self.sensitisation + self.irritation
@@ -97,7 +103,7 @@ class Assessment:
             "Genotox alerts": "; ".join(h.name for h in self.genotox),
             "Non-genotox alerts": "; ".join(h.name for h in self.nongenotox),
             "Sensitisation alerts": "; ".join(h.name for h in self.sensitisation),
-            "Irritation alerts": "; ".join(h.name for h in self.irritation),
+            "Reactive group flags": "; ".join(h.name for h in self.irritation),
             "TTC tier": self.ttc_class,
             "TTC (µg/person/day)": self.ttc_value_ug_day,
         }

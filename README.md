@@ -2,7 +2,8 @@
 
 Structure-based toxicity screening in the browser. Paste a SMILES, get the
 Cramer class, the Verhaar aquatic mode of action, structural alerts for
-genotoxicity, sensitisation and irritation, and the Kroes TTC tier — each with
+genotoxicity and sensitisation, flags for reactive groups, and the Kroes TTC
+tier — each with
 the decision path that produced it.
 
 Everything is Python: RDKit for the cheminformatics, Streamlit for the UI. No
@@ -33,7 +34,7 @@ The app opens at <http://localhost:8501>.
 | **Genotoxic carcinogenicity** | 35 DNA-reactivity structural alerts |
 | **Non-genotoxic carcinogenicity** | 8 alerts for receptor-mediated, hormonal and regenerative mechanisms |
 | **Skin sensitisation** | 23 mechanistic protein-binding alerts (Michael addition, Schiff base, acyl transfer, SN2, SNAr) plus the pro-haptens |
-| **Skin / eye irritation** | 10 reactivity triggers — *unvalidated, see below* |
+| **Reactive group flags** | 10 protein-reactive and corrosive triggers. **Not** an irritancy prediction — see below |
 | **Kroes TTC** | Tiered threshold of toxicological concern, optionally compared against an exposure estimate |
 
 Three tabs: **Single structure** (depiction with the matched alert atoms
@@ -645,10 +646,10 @@ mislabelled since the examples were written.
 | Verhaar scheme | 121 (Verhaar *et al.*) | 87.2% concordance |
 | Genotoxicity alerts | 672 of 691 (ISSCAN Ames) | 90% sensitivity, 59% specificity |
 | Sensitisation alerts | 208 of 209 (LLNA) | 92% sensitivity, 49% specificity |
-| **Irritation alerts** | **none found** | **unvalidated** — agrees with Toxtree's SICRET/eye rulebases at about chance |
+| **Reactive group flags** | **none applicable** | **not a prediction** — renamed; agrees with Toxtree's SICRET/eye rulebases at about chance |
 | **Non-genotoxic carcinogenicity** | **none found** | **unvalidated** — agrees with Toxtree on 37% of the compounds where either fires |
 
-### Why irritation is unvalidated
+### Why this is called reactive group flags
 
 There is no experimental irritation set to validate against. The Toxtree
 repository's eye-irritation plugin ships rule classes and a 417-byte test
@@ -660,13 +661,30 @@ available as parseable structure files.
 
 Two things follow, and both are stated here rather than papered over.
 
-First, **these alerts are the least grounded of the five**. The published
-approach to local irritation is largely *physicochemical* — the BfR
-decision support system works from logP, molecular weight, melting point
-and pKa cut-offs with structural rules layered on top. This implementation
-is a SMARTS reactivity list, which does not capture that at all. It should
-be read as a flag for reactive functional groups, not as a prediction of
-irritancy or corrosivity.
+First, **these alerts are not an irritation rulebase and are no longer
+labelled as one.** The published approach to local irritation is largely
+*physicochemical* — the BfR decision support systems work from logP,
+molecular weight, melting point, aqueous solubility and pKa cut-offs with
+structural rules layered on top. This implementation is a SMARTS
+reactivity list, which does not capture that at all.
+
+The comparison settles what used to be an argument. Run over the same
+compounds, this list agrees with Toxtree's SICRET skin rulebase on 50% of
+the 129 cases SICRET will answer for, and with its eye rulebase on 60% of
+37 — about what two unrelated classifiers would manage.
+
+**And the BfR route is not open here**, which is why the panel was renamed
+rather than rewritten. Toxtree itself answered "Unknown" for 80 of 209
+compounds on SICRET and 172 of 209 on the eye rules, because the measured
+properties those rules need were absent from the file. Melting point,
+aqueous solubility and pKa cannot be computed reliably from a structure
+and this app has no source for them, so a partial implementation would be
+the same overstatement in new clothes. The panel is kept because "this
+molecule contains a reactive fragment" is worth knowing; it is labelled
+for what it is.
+
+The verdict wording and colour changed with the name: a flag now reads
+amber rather than red, since it reports a fragment rather than a hazard.
 
 Second, what *can* be checked without labels was checked. An alert set
 that fires on most of chemical space carries no information whatever the

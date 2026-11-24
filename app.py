@@ -61,6 +61,12 @@ def verdict_card(title: str, value: str, tone: str = "v-none", sub: str = "") ->
 def tone_for(value: str) -> str:
     if value in TONE:
         return TONE[value]
+    # The reactive-group flags deliberately read amber, not red: they say a
+    # reactive fragment is present, not that the substance is an irritant.
+    if value.startswith("None flagged"):
+        return "v-low"
+    if value.startswith("Flagged"):
+        return "v-mid"
     if value.startswith("No alert"):
         return "v-low"
     if value.startswith("Alerting"):
@@ -97,7 +103,7 @@ with st.sidebar:
     st.metric("SMARTS alerts", len(ALL_ALERTS) + len(COMPUTED))
     st.caption(
         f"{len(GENOTOX)} genotoxicity · {len(NONGENOTOX)} non-genotoxicity · "
-        f"{len(SENSITISATION)} sensitisation · {len(IRRITATION)} irritation"
+        f"{len(SENSITISATION)} sensitisation · {len(IRRITATION)} reactive-group"
     )
 
     rl = reflists.status()
@@ -123,8 +129,8 @@ with st.sidebar:
                    "`python tools/fetch_reference_lists.py toxtree/data/`.")
 
 st.title("Toxicity decision trees")
-st.caption("Cramer classes · Verhaar aquatic modes of action · genotoxicity, "
-           "sensitisation and irritation alerts · Kroes TTC")
+st.caption("Cramer classes · Verhaar aquatic modes of action · genotoxicity "
+           "and sensitisation alerts · reactive-group flags · Kroes TTC")
 
 tab_single, tab_batch, tab_rules, tab_about = st.tabs(
     ["Single structure", "Batch screening", "Rulebase reference", "Method notes"]
@@ -235,7 +241,7 @@ with tab_single:
                     i += 1
                 if "irritation" in chosen:
                     cols[i % 2].markdown(
-                        verdict_card("Skin / eye irritation", a.irritation_verdict,
+                        verdict_card("Reactive group flags", a.irritation_verdict,
                                      tone_for(a.irritation_verdict),
                                      ", ".join(h.code for h in a.irritation)),
                         unsafe_allow_html=True)
@@ -428,8 +434,8 @@ with tab_batch:
                 k[2].metric("Sensitisation alerts",
                             int((df["Sensitisation alerts"] != "").sum()))
             if "irritation" in chosen:
-                k[3].metric("Irritation alerts",
-                            int((df["Irritation alerts"] != "").sum()))
+                k[3].metric("Reactive group flags",
+                            int((df["Reactive group flags"] != "").sum()))
 
             st.dataframe(df, hide_index=True, width='stretch', height=460)
 
@@ -507,7 +513,7 @@ existing program:
 | Verhaar scheme | Verhaar *et al.* (1992), *Chemosphere* 25, 471; refinements from Enoch *et al.* (2008) |
 | Genotoxicity alerts | Benigni & Bossa structural-alert set for mutagenicity and carcinogenicity |
 | Sensitisation alerts | Mechanistic protein-binding domains (Michael addition, Schiff base, acyl transfer, SN2, SNAr) |
-| Irritation alerts | Reactivity and physicochemical triggers for local lesions |
+| Reactive group flags | Protein-reactive and corrosive functional groups. **Not** a prediction of irritancy — see below |
 | TTC tiers | Kroes *et al.* (2004), *Food Chem. Toxicol.* 42, 65 |
 
 ### How to read a result
@@ -593,27 +599,42 @@ sense: it measures how much checked evidence stands behind an answer. A
 low score does not mean the rule misfired — it means nothing in the
 reference data would have caught it if it had.
 
-### Irritation: unvalidated, and why
+### Why this is "reactive group flags" and not "irritation"
 
-Of the five rulebases, four are now checked against experimental data.
-The irritation alerts are not, and neither is non-genotoxic
-carcinogenicity: no reference set exists in the Toxtree repository and no
-public machine-readable one could be found.
+This panel used to be labelled skin and eye irritation. It is not that,
+and it has been renamed rather than left to imply more than it does.
 
-These alerts are therefore **the least grounded part of this app**. The
-published approach to local irritation is largely physicochemical — the
-BfR system works from logP, molecular weight, melting point and pKa
-cut-offs — whereas this is a SMARTS reactivity list. Read it as a flag
-for reactive functional groups, not as a prediction of irritancy.
+What it computes is a SMARTS list of protein-reactive and corrosive
+functional groups. The published approach to local irritation is a
+different kind of thing: the BfR decision support systems work largely
+from **physicochemical cut-offs** — logP, molecular weight, melting point,
+aqueous solubility and pKa — with structural exclusions layered on top.
 
-What could be checked without labels was: across the 941 unique compounds
-from the other reference sets, at least one irritation alert fires on 29%
-of them and no single alert exceeds an 11% rate, so the set does
-discriminate rather than flagging everything. That found no pathology,
-which is a negative result rather than a validation. It did expose one
-defect that needs no labels: the amino acids were firing both the acid and
-the base alert, though an alpha-amino acid is zwitterionic at skin pH.
-Both alerts now exclude that case.
+Comparing the two settles it. Run against the same compounds, this list
+and Toxtree's SICRET skin rulebase agree on 50% of the 129 cases SICRET
+will answer for; for eye irritation the agreement is 60% of 37. That is
+about what two unrelated classifiers would manage, and it says the two are
+measuring different things.
+
+**Implementing the BfR rules properly is not available here**, which is
+the other half of the reason for renaming rather than rewriting. Toxtree
+itself returned "Unknown" for 80 of 209 compounds on SICRET and 172 of 209
+on the eye rulebase, because the measured properties its rules need were
+not in the file. Melting point, aqueous solubility and pKa cannot be
+computed reliably from a structure, and this app has no source for them.
+A partial implementation would be the same overstatement in new clothes.
+
+So: read a flag here as "this molecule contains a reactive fragment",
+which is a useful thing to know and is why the panel is kept. Do not read
+it as a prediction of irritancy or corrosivity.
+
+What could be checked without labels was. Across the 941 unique compounds
+from the other reference sets, at least one flag fires on 29% of them and
+no single alert exceeds an 11% rate, so the set discriminates rather than
+flagging everything. That found no pathology, which is a negative result
+rather than a validation. It did expose one defect that needs no labels:
+the amino acids were firing both the acid and the base alert, though an
+alpha-amino acid is zwitterionic at skin pH. Both now exclude that case.
 
 ### The structural alerts
 
