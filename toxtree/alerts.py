@@ -159,8 +159,21 @@ GENOTOX: list[Alert] = [
 NONGENOTOX: list[Alert] = [
     Alert("NG1", "Halogenated benzene / phenol", "[F,Cl,Br,I]c1ccccc1", "nongenotox",
           "Peroxisome proliferation and sustained hepatocyte stress."),
-    Alert("NG2", "Chlorinated alkane (C1-C4)", "[CX4]([F,Cl,Br,I])([F,Cl,Br,I])", "nongenotox",
-          "Cytotoxicity with regenerative hyperplasia."),
+    # Widened from two halogens on one saturated carbon. That shape misses
+    # both of the families the Toxtree comparison turned up: the chlorinated
+    # ethylenes are sp2, so no CX4 matches, and the hexachlorocyclohexanes
+    # carry one halogen per carbon rather than two on any one of them.
+    # Three halogens across a double bond is the threshold that separates
+    # tri- and tetrachloroethylene, hexachlorobutadiene and tetrafluoro-
+    # ethylene from vinylidene chloride, dichlorvos and deltamethrin, which
+    # carry two and which Toxtree does not flag either.
+    Alert("NG2", "Polyhalogenated alkane, alkene or cycloalkane",
+          "[$([CX4]([F,Cl,Br,I])([F,Cl,Br,I])),"
+          "$([CX3]([F,Cl,Br,I])([F,Cl,Br,I])=[CX3][F,Cl,Br,I]),"
+          "$([CX4;R]([F,Cl,Br,I])[CX4;R]([F,Cl,Br,I])[CX4;R][F,Cl,Br,I])]",
+          "nongenotox",
+          "Cytotoxicity with regenerative hyperplasia; the chlorinated "
+          "ethylenes and the hexachlorocyclohexanes act this way."),
     Alert("NG4", "Phenoxy or chlorophenoxy acid", "[c][OX2][CX4][CX3](=[OX1])[OX2H,OX1-]", "nongenotox",
           "Peroxisome proliferator-activated receptor agonism."),
     Alert("NG5", "Perfluoroalkyl acid/sulphonate",
@@ -172,8 +185,23 @@ NONGENOTOX: list[Alert] = [
     # are non-genotoxic hepatocarcinogens, so the mechanism is the same one
     # this alert already describes. There is no experimental set for this
     # rulebase, so that rests on chemistry rather than on measurement.
-    Alert("NG6", "Thiocarbamide / thioamide / imidazole antithyroid motif",
-          "[$([NX3][CX3](=[SX1])[NX3,#6]),$(c1cnc[nH]1)]", "nongenotox",
+    # Two further arms, both from the Toxtree comparison. The thiouracils and
+    # thioguanines are written as aromatic thiones -- c(=S)[nH] -- which the
+    # aliphatic [NX3][CX3](=[SX1]) could never reach, so the alert was simply
+    # too narrow for half its own mechanism. The dithiocarbamates and thiurams
+    # inhibit thyroid peroxidase by the same route and carry an
+    # ethylenethiourea metabolite, so they belong here too.
+    #
+    # The dithiocarbamate arm is the one case in this rulebase where agreeing
+    # with Toxtree got *worse*: it gains three compounds Toxtree flags and
+    # newly flags three it does not -- sulfallate, sodium diethyldithio-
+    # carbamate and dimethyldithiocarbamic acid. Those three are themselves
+    # dithiocarbamates, so the disagreement looks like inconsistency on the
+    # other side rather than over-reach here, and treating the class
+    # uniformly was preferred to scoring a point.
+    Alert("NG6", "Thiocarbamide, thioamide or dithiocarbamate antithyroid motif",
+          "[$([NX3][CX3](=[SX1])[NX3,#6]),$(c1cnc[nH]1),"
+          "$([SX1]=[#6;r5,r6]~[#7;R]),$([NX3][CX3](=[SX1])[SX2])]", "nongenotox",
           "Thyroid peroxidase inhibition leading to follicular tumours; "
           "thioamides are activated to hepatotoxic sulphine metabolites."),
     Alert("NG7", "Long-chain phthalate ester",
@@ -205,6 +233,14 @@ NONGENOTOX: list[Alert] = [
           "nongenotox",
           "Hydrolysed to 2-ethylhexanol and oxidised to 2-ethylhexanoic acid, "
           "a PPAR-alpha agonist; hepatic peroxisome proliferation."),
+    Alert("NG10", "Methylenedioxyphenyl (benzodioxole)",
+          "[c][OX2][CX4H2][OX2][c]", "nongenotox",
+          "Forms a metabolic-intermediate complex with cytochrome P450; "
+          "sustained enzyme induction and liver tumour promotion. The "
+          "safroles and the piperonyl synergists share this core."),
+    Alert("NG11", "Hydroxybiphenyl", "[OX2H,OX1-]c1ccccc1-c1ccccc1", "nongenotox",
+          "Urothelial cytotoxicity with regenerative hyperplasia; "
+          "ortho-phenylphenol and its sodium salt are the examples."),
 ]
 
 # --------------------------------------------------------------------------

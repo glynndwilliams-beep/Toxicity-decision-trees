@@ -5,6 +5,9 @@ or simply: .venv/Scripts/python.exe test_rules.py
 """
 from __future__ import annotations
 
+import csv
+import pathlib
+
 from toxtree import assess, parse_structure
 from toxtree.alerts import validate_library
 from toxtree.cramer import CLASS_I, CLASS_II, CLASS_III
@@ -193,6 +196,66 @@ def test_class_two_discrimination():
     # question, even though they are on the food list.
     assert cls("COc1cc(C=O)ccc1O") == CLASS_I                      # vanillin
     assert cls("CCO") == CLASS_I                                   # ethanol
+
+
+def test_against_the_toxtree_oracle():
+    """Every verdict is diffed against a recorded baseline, not thirty pins.
+
+    The expectations elsewhere in this file were written by the same person
+    who wrote the rules, so they encode the same assumptions, and twice they
+    have been wrong in the same direction -- acrolein pinned to Cramer Class
+    III against the authors' own classification, methyl acrylate pinned as
+    genotoxicity-alerting on an alert that was in the wrong rulebase. An
+    external baseline over the whole reference set cannot share those
+    assumptions.
+
+    The fixture records what Toxtree says and what this implementation said
+    when the fixture was built. A changed verdict fails here with the
+    compound named and the direction given, so an intended rule change means
+    regenerating the fixture on purpose rather than discovering months later
+    that forty compounds moved quietly.
+
+    The fixture is GPL-derived and is not committed; build it with
+    tools/build_oracle.py. Without it this test reports that it is skipped.
+    """
+    fixture = pathlib.Path("toxtree/data/toxtree_oracle.csv")
+    if not fixture.exists():
+        print("     (skipped: toxtree/data/toxtree_oracle.csv not built)")
+        return
+
+    from toxtree.engine import SCHEME_LABELS  # noqa: F401  (import check)
+    import compare_toxtree
+
+    moved, checked = [], 0
+    with fixture.open(newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            spec = compare_toxtree.SCHEMES[row["scheme"]]
+            rec = parse_structure(row["smiles"], row["name"])
+            if not rec.ok:
+                continue
+            checked += 1
+            now = spec["ours"](assess(rec, spec["our_schemes"]))
+            now = "" if now is None else str(now)
+            was = row["ours"]
+            if now != was:
+                toward = ("toward Toxtree" if now == row["toxtree"]
+                          else "away from Toxtree" if was == row["toxtree"]
+                          else "neither side")
+                moved.append(f"{row['scheme']}/{row['name'][:34]}: "
+                             f"{was or 'none'} -> {now or 'none'} "
+                             f"(Toxtree says {row['toxtree'] or 'nothing'}, "
+                             f"{toward})")
+
+    assert checked, "oracle fixture is present but empty"
+    if moved:
+        shown = "\n       ".join(moved[:15])
+        extra = (f"\n       ... and {len(moved) - 15} more"
+                 if len(moved) > 15 else "")
+        raise AssertionError(
+            f"{len(moved)} of {checked} verdicts changed since the oracle was "
+            f"built.\n       If that was intended, rebuild it with "
+            f"tools/build_oracle.py.\n       {shown}{extra}")
+    print(f"     ({checked} verdicts match the recorded baseline)")
 
 
 def test_molblock_with_a_blank_title_line_parses():

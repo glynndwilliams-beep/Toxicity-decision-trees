@@ -32,7 +32,7 @@ The app opens at <http://localhost:8501>.
 | **Cramer rules** | Class I / II / III structural class of oral toxicity, with the full question path |
 | **Verhaar scheme** | Aquatic mode of action (classes 1–5) plus a baseline-narcosis LC50 estimate for classes 1 and 2 |
 | **Genotoxic carcinogenicity** | 35 DNA-reactivity structural alerts |
-| **Non-genotoxic carcinogenicity** | 8 alerts for receptor-mediated, hormonal and regenerative mechanisms |
+| **Non-genotoxic carcinogenicity** | 10 alerts for receptor-mediated, hormonal and regenerative mechanisms |
 | **Skin sensitisation** | 23 mechanistic protein-binding alerts (Michael addition, Schiff base, acyl transfer, SN2, SNAr) plus the pro-haptens |
 | **Reactive group flags** | 10 protein-reactive and corrosive triggers. **Not** an irritancy prediction — see below |
 | **Kroes TTC** | Tiered threshold of toxicological concern, optionally compared against an exposure estimate |
@@ -49,7 +49,7 @@ LICENSE             MIT
 app.py              Streamlit interface
 toxtree/
   chem.py           parsing, descriptors, SVG depiction
-  alerts.py         the SMARTS alert library (90 alerts)
+  alerts.py         the SMARTS alert library (92 alerts)
   cramer.py         Cramer decision tree
   verhaar.py        Verhaar scheme + baseline QSARs
   engine.py         orchestration + the Kroes TTC tree
@@ -66,6 +66,7 @@ tools/
   fetch_reference_lists.py    body/food lists + the second Cramer set
   fetch_verhaar_reference.py  Verhaar validation set
   fetch_alert_references.py   LLNA sensitisation + Ames mutagenicity sets
+  build_oracle.py             build the Toxtree regression fixture
   analyse_tree.py             recover tree topology from decision paths
 ```
 
@@ -250,8 +251,9 @@ the misses stay at 36 of 340, exactly the same compounds. Specificity goes
 53.0% → 56.4%, precision 64.8% → 66.5%, balanced accuracy 71.2% → 72.9%. The
 non-genotoxic set, which cannot be scored directly, was checked for shape the
 same way the irritation set is: across the 831 unique compounds of the other
-three reference sets it fires on 19.6%, no single alert above 10.0%, with the
-arrivals at 2.0% (NG6) and 0.8% (NG8).
+three reference sets it fires on 21.7%, no single alert above 10.0%, with the
+later arrivals at 2.6% (NG6, widened), 0.8% (NG8) and 0.5% each for NG9 and
+NG10.
 
 ### Counting only the alerts that actually cost something
 
@@ -476,12 +478,19 @@ Class III. Re-deriving structures would measure the drawing, not the rules.
 | scheme | set | ours | Toxtree | module |
 | --- | --- | --- | --- | --- |
 | Cramer | 108 foodmol | **96.3%** | 77.8% | `toxTree.tree.cramer.CramerRules` |
+| Cramer | 78 Appendix 1 † | **91.0%** | 84.6% | `toxTree.tree.cramer.CramerRules` |
 | Verhaar | 117 Verhaar2000 | **87.1%** | 53.4% | `verhaar.VerhaarScheme` |
 | Sensitisation | 208 LLNA | **92% sens** | 91% sens | `…SkinSensitisationPlugin` |
 | Genotoxicity | 665 ISSCAN Ames | **89% sens** | 87% sens | `mutant.BB_CarcMutRules` |
 | Non-genotox carcinogenicity | 886 comparable | — | — | `mutant.BB_CarcMutRules` |
 | Skin irritation | 129 comparable | — | — | `sicret.SicretRules` |
 | Eye irritation | 37 comparable | — | — | `eye.EyeIrritationRules` |
+
+† Appendix 1 is distributed as Java test fixtures rather than an SDF, so its
+structures have to be rebuilt from SMILES. That is the representation caveat
+below in action, and it makes this row weaker evidence than the others; it is
+used mainly to read *which questions* decided a compound, which are
+structural.
 
 These figures are deliberately scored on every record both programs answer
 for, including the metal compounds and inorganics that the validation section
@@ -542,30 +551,53 @@ approach's own floor on this data, not a defect in either implementation — and
 it is the figure no amount of work on these SMARTS patterns will move.
 
 **Non-genotoxic carcinogenicity gets its first external check**, and it comes
-with a warning about how to read it. The two agree on 85.2% of 886 compounds —
-but 673 of those are cases where *neither* fires, so the headline is mostly
-mutual silence. Among the 213 compounds where either one fires they agree on
-82, which is **38.5%**. That is the number worth quoting, and it says the two
-rulebases are picking out substantially different compounds. This is the first
-evidence of any kind about this rulebase, which until now had none at all.
+with a warning about how to read it. The two agree on 87.8% of 886 compounds —
+but 670 of those are cases where *neither* fires, so the headline is mostly
+mutual silence. Among the 216 compounds where either one fires they agree on
+108, which is **50.0%**. That is the number worth quoting. It began at 37%,
+and the climb is the whole content of this section: the comparison was the
+first evidence of any kind about this rulebase, which until then had none.
 
-The disagreements are chemically legible in both directions. This
-implementation flags 90 that Toxtree does not, nearly all of them on NG1
-(halogenated benzene or phenol) and NG2 (chlorinated alkane), which are broad:
-1,2-dichlorobenzene, chlorodibromomethane, 1,1,1-trichloroethane. Toxtree
-flagged 44 that this did not, and three of those were one family — di-(2-
-ethylhexyl) adipate, tris(2-ethylhexyl) phosphate and sodium 2-ethylhexyl
-sulfate. **NG9** was written for them and recovers all three, which is what
-moved the figure above from 37% to 38.5%.
+The misses came in families, which is what made them fixable. Of the 44 that
+Toxtree flagged and this did not:
 
-That is a small gain from a clear finding, and the remaining 41 say why. They
-are not one family but four or five: the thiouracils and thioamides, where NG6
-may simply be too narrow; the hexachlorocyclohexanes and chlorinated
-ethylenes; the safroles; and the thiuram disulphides. Each needs its own
-mechanistic argument rather than a pattern fitted to a list of names, and
-none has been made here yet. The 90 in the other direction are the same
-question asked backwards: NG1 and NG2 are broad enough that they may be
-costing precision this rulebase has no data to measure.
+| family | alert | recovered | newly disagreeing |
+| --- | --- | --- | --- |
+| 2-ethylhexyl esters | NG9 | 3 | 0 |
+| thiouracils and thioguanines | NG6 (widened) | 5 | 0 |
+| safroles and piperonyl synergists | NG10 | 5 | 0 |
+| chlorinated ethylenes, hexachlorocyclohexanes | NG2 (widened) | 8 | 0 |
+| ortho-phenylphenol | NG11 | 2 | 0 |
+| dithiocarbamates and thiurams | NG6 (widened) | 3 | **3** |
+
+**NG6 was simply too narrow for its own mechanism.** Its thiocarbamide arm
+required an aliphatic `[NX3][CX3](=[SX1])`, but the thiouracils and
+thioguanines are written as aromatic thiones — `c(=S)[nH]` — which that can
+never reach. Half the thyroid story was unreachable by construction.
+
+**NG2 was the wrong shape.** Two halogens on one saturated carbon misses both
+families: the chlorinated ethylenes are sp², so no `CX4` matches, and the
+hexachlorocyclohexanes carry one halogen per carbon rather than two on any
+one of them. Three halogens across a double bond is the threshold that
+separates tri- and tetrachloroethylene, hexachlorobutadiene and
+tetrafluoroethylene from vinylidene chloride, dichlorvos and deltamethrin —
+which carry two, and which Toxtree does not flag either.
+
+**The dithiocarbamates are the one case where agreeing with Toxtree got
+worse,** and they were added anyway. The arm gains three compounds Toxtree
+flags and newly flags three it does not: sulfallate, sodium diethyldithio-
+carbamate and dimethyldithiocarbamic acid. Those three are themselves
+dithiocarbamates. The disagreement therefore looks like inconsistency on the
+other side rather than over-reach here, and treating a mechanistic class
+uniformly was preferred to scoring a point. Agreement is not ground truth,
+and this is the case that makes the difference visible.
+
+What remains is the other direction. This implementation flags 93 compounds
+Toxtree does not, most of them on NG1 (halogenated benzene or phenol) and NG2,
+which are broad: 1,2-dichlorobenzene, chlorodibromomethane,
+1,1,1-trichloroethane. Whether that is over-reach cannot be settled, because
+nothing can score precision on this endpoint — there is still no experimental
+reference set, only a second opinion.
 
 **Irritation is the answer to the open question above, and it is not
 reassuring.** There are still no experimental labels, so this is agreement
@@ -576,6 +608,58 @@ because its rules want physicochemical properties the file does not carry.
 Chance-level agreement is what the README predicted from first principles: a
 SMARTS reactivity list and a logP/MW/pKa decision system are not two
 implementations of one thing. Treat that tab accordingly.
+
+### The comparison as a regression test
+
+The expectations in `test_rules.py` were written by the same person who wrote
+the rules, so they encode the same assumptions — and twice they have been
+wrong in the same direction. Acrolein was pinned to Cramer Class III against
+the classification its own authors give; methyl acrylate was pinned as
+genotoxicity-alerting on an alert that measurement later moved out of the
+rulebase entirely. Thirty hand-written pins cannot catch that.
+
+`tools/build_oracle.py` records, for every compound in the reference files,
+what Toxtree says and what this implementation said when the fixture was
+built:
+
+```powershell
+.venv\Scripts\python.exe tools\build_oracle.py out\ toxtree\data\toxtree_oracle.csv
+```
+
+`test_against_the_toxtree_oracle` then recomputes this side and fails on any
+compound whose verdict has moved, naming it and saying whether it moved
+*toward* Toxtree or away:
+
+```
+sensitisation/Isoeugenol: no alert -> alerting (Toxtree says alerting, toward Toxtree)
+```
+
+So changing a rule now means regenerating the fixture deliberately. That
+deliberate step is exactly what was missing when the two bad pins went in.
+
+The fixture stores canonical SMILES rather than molblocks, which is a
+compromise: Toxtree answers two Cramer questions by InChI lookup and can give
+a different answer for the same compound drawn differently. The build guards
+against it by computing each verdict from the molblock *and* from the round
+-tripped SMILES and dropping any compound where the two disagree — a
+regression test that cannot reproduce its own baseline is worse than none.
+
+A regression test that has never failed is a test nobody has checked, so this
+one was verified by breaking a rule on purpose: narrowing NG10 so the
+benzodioxoles stop matching. It named all five affected compounds and the
+direction —
+
+```
+nongenotox/Safrole: alerting -> no alert (Toxtree says alerting, away from Toxtree)
+```
+
+— and passed again once the rule was restored. The fixture currently holds
+**2624 verdicts** across seven schemes; 3 compounds were dropped because their
+SMILES round trip would not reproduce the molblock answer, and 40 because
+Toxtree returned no record for them.
+
+Like everything else `tools/` produces, the fixture is GPL-derived and is not
+committed. Without it the test reports itself skipped rather than failing.
 
 ### What the comparison found in this code
 
@@ -651,7 +735,7 @@ mislabelled since the examples were written.
 | Genotoxicity alerts | 672 of 691 (ISSCAN Ames) | 90% sensitivity, 59% specificity |
 | Sensitisation alerts | 208 of 209 (LLNA) | 92% sensitivity, 49% specificity |
 | **Reactive group flags** | **none applicable** | **not a prediction** — renamed; agrees with Toxtree's SICRET/eye rulebases at about chance |
-| **Non-genotoxic carcinogenicity** | **none found** | **unvalidated** — agrees with Toxtree on 37% of the compounds where either fires |
+| **Non-genotoxic carcinogenicity** | **none found** | **unvalidated** — agrees with Toxtree on 50% of the compounds where either fires |
 
 ### Why this is called reactive group flags
 
@@ -800,6 +884,50 @@ of the data was wrong:
   ascorbic acid and riboflavin are all in it and the scheme still rates them
   II or III. An explicit guard patched around that for a while; identifying
   the narrow membership Q1 actually asks for removed the need for one.
+
+### Pricing the questions that are not implemented
+
+The Cramer tree here is 14 questions standing in for the original 33, and
+Class II on Appendix 1 is the worst per-class figure in the project at 43%.
+Whether finishing the tree would fix that used to be an argument. It is now a
+measurement, because Toxtree emits a decision path for any compound, so the
+question can be asked of structures the recorded paths never covered.
+
+Run over Appendix 1, Toxtree gets six compounds right that this
+implementation gets wrong. **Three of them turn on the same question, Q18**,
+and its behaviour across both reference sets is unambiguous:
+
+| | n | class |
+| --- | --- | --- |
+| Q18 answered **yes** | 5 | all Class II |
+| Q18 answered **no** | 64 | all Class I |
+
+It is the terminal Class I/II gate on the branch this implementation exits
+early, which is precisely where the Class II accuracy is being lost. So the
+answer is yes: the missing questions are worth implementing, and Q18 is the
+one to do first.
+
+What Q18 *asks* took one wrong hypothesis to find. The obvious guess, given
+that answering yes yields Class II, was the food-list lookup that Q22 already
+performs. The data refuses it: none of the five yes-answers is in the food
+list, while 18 of the 64 no-answers are. That is the wrong way round for a
+food test.
+
+Reading the two groups together gives it. The yes-answers are 1,3-butanediol,
+acetoin, BHT, 2-heptanone and allyl heptanoate — flavour and additive
+chemicals. The no-answers on the same branch are, almost without exception,
+fatty acids and amino acids: alanine, valine, leucine, isoleucine, aspartic
+and glutamic acid, and essentially every straight-chain fatty acid from
+hexanoic to tetracosanoic, saturated and unsaturated alike, plus ethanol,
+propylene glycol and the simple diacids. Q18 separates **normal dietary and
+metabolic constituents from everything else**, and it is a membership
+question rather than a structural one — which is why no SMARTS pattern was
+going to find it, and why implementing it will need the curated lists this
+project already fetches rather than a new rule.
+
+That is as far as this goes for now: the question is identified and priced,
+not implemented. Adding a terminal gate to a branch is a change with real
+regression risk, and it belongs in its own pass with the oracle in place.
 
 ## Licence
 
