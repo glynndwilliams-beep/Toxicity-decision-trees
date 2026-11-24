@@ -538,10 +538,10 @@ fixture and cannot be read, leaving 81 scored:
 | | → Class I | → Class II | → Class III | n |
 | --- | --- | --- | --- | --- |
 | **Reference Class I** | **31** | 0 | 1 | 32 |
-| **Reference Class II** | 4 | **3** | 0 | 7 |
+| **Reference Class II** | 3 | **4** | 0 | 7 |
 | **Reference Class III** | 1 | 1 | **36** | 38 |
 
-**Overall concordance 70/77 = 90.9%** — Class I 97%, Class II 43%, Class III 95%.
+**Overall concordance 71/77 = 92.2%** — Class I 97%, Class II 57%, Class III 95%.
 Six compounds are placed in a *lower* class than the reference (the unsafe
 direction) and one in a higher one.
 
@@ -704,7 +704,7 @@ had needed.
 **On self-confirmation.** The Q1 membership was identified from the recorded
 paths, which include both validation sets, so that part is partly circular.
 The effect is measurable and small: on the Appendix 1 set *no compound at all*
-is decided by that list, so its 90.9% is entirely structural; on the food set
+is decided by that list, so its 92.2% is entirely structural; on the food set
 23 of 106 are, and excluding them the remaining 83 score 95.2% against 96.2%
 overall.
 

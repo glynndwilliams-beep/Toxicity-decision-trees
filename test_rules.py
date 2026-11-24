@@ -10,7 +10,7 @@ import pathlib
 
 from toxtree import assess, parse_structure
 from toxtree.alerts import validate_library
-from toxtree.cramer import CLASS_I, CLASS_II, CLASS_III
+from toxtree.cramer import CLASS_I, CLASS_II, CLASS_III, q18_feature
 from toxtree.examples import EXAMPLES
 
 # (SMILES, expected Cramer class, expected Verhaar class number, genotox alert?)
@@ -21,13 +21,18 @@ CASES = [
     ("Oc1ccccc1", CLASS_I, 2, False),                 # phenol
     ("Nc1ccccc1", CLASS_III, 2, True),                # aniline
     ("C1OC1c1ccccc1", CLASS_III, 3, True),            # styrene oxide
-    # Acrolein was pinned to Class III here on my own assumption. Validation
-    # against Cramer et al. (1978) Appendix 1 corrected it: that paper places
-    # trans-2-hexenal and cinnamaldehyde, the same functional class, in Class I,
-    # so a simple alpha,beta-unsaturated aldehyde is Class I in this scheme.
-    # The genotoxicity and Verhaar reactivity alerts still fire, which is where
-    # the concern for acrolein actually shows up.
-    ("C=CC=O", CLASS_I, 3, True),                     # acrolein
+    # Acrolein has now been pinned wrongly twice, in opposite directions, and
+    # both times by reasoning rather than by reading the scheme. First it was
+    # Class III on an assumption. Then Appendix 1 was taken to correct it to
+    # Class I, because that paper places trans-2-hexenal and cinnamaldehyde --
+    # "the same functional class" -- in Class I. That generalisation was the
+    # error: Q18 branch (e) names *acrolein, a methacrolein or their acetals*
+    # explicitly, and answering yes gives Class II. Hexenal and cinnamaldehyde
+    # do not match it, because branch (e) requires the terminal vinyl group
+    # that only acrolein and methacrolein have, so both stay Class I and the
+    # analogy never held. Class II it is, which is also what Toxtree says.
+    ("C=CC=O", CLASS_II, 3, True),                    # acrolein
+    ("CC(=C)C=O", CLASS_II, 3, True),                 # methacrolein
     ("O=CC=CCCC", CLASS_I, 3, True),                  # trans-2-hexenal (ref: 1)
     ("O=CC=Cc1ccccc1", CLASS_I, 3, True),             # cinnamaldehyde (ref: 1)
     ("c1cc(ccc1OC)C=CC", CLASS_III, 1, False),        # anethole (ref: 3)
@@ -196,6 +201,48 @@ def test_class_two_discrimination():
     # question, even though they are on the food list.
     assert cls("COc1cc(C=O)ccc1O") == CLASS_I                      # vanillin
     assert cls("CCO") == CLASS_I                                   # ethanol
+
+
+def test_q18_structural_features():
+    """Cramer's Q18, the gate that turns a Class I branch into Class II.
+
+    Implemented from the question's own wording as reproduced in the JRC
+    analysis of the scheme, branches (a) to (h). Branch (i), "all functional
+    groups sterically hindered", is left out: it is undefined in the paper
+    and Phillips et al. deleted it as ambiguous, so BHT is a known and
+    deliberate miss rather than an oversight.
+
+    Branch (h) is read strictly, as four or more carbons on *both* sides of
+    the keto group. The loose reading is where Toxtree is reported to
+    over-call, and it would pull in every methyl ketone.
+    """
+    def cls(smiles):
+        rec = parse_structure(smiles)
+        assert rec.ok, smiles
+        return assess(rec, {"cramer"}).cramer.cramer_class
+
+    def fires(smiles):
+        return q18_feature(parse_structure(smiles).mol) is not None
+
+    assert fires("C=CCOC(=O)CCCCCC")          # allyl heptanoate      (c)
+    assert fires("C=CCO")                      # allyl alcohol         (c)
+    assert fires("C=CCSC")                     # allyl methyl sulphide (d)
+    assert fires("C=CC=O")                     # acrolein              (e)
+    assert fires("C=CC(=O)O")                  # acrylic acid          (f)
+    assert fires("CC#CC")                      # acetylenic            (g)
+    assert fires("CC(=O)C(C)=O")               # diacetyl              (a)
+    assert fires("CCCCC(=O)CCCC")              # nonan-5-one           (h)
+
+    # ...and the boundaries that keep it from becoming a different question
+    assert not fires("C=CC(=O)OC")             # acrylate ester: Cramer keeps
+    assert not fires("O=C(O)C(=O)O")           # oxalic acid is not a diketone
+    assert not fires("CCCCCC(C)=O")            # 2-heptanone: one side is C1
+    assert not fires("CCO")                    # ethanol
+    assert not fires("CCCCCOC(=O)CCC")         # pentyl butyrate
+
+    # the gate only intercepts verdicts that would otherwise be Class I
+    assert cls("C=CCOC(=O)CCCCCC") == CLASS_II
+    assert cls("CCCCCOC(=O)CCC") == CLASS_I
 
 
 def test_against_the_toxtree_oracle():

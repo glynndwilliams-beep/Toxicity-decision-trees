@@ -152,6 +152,107 @@ def _is_carbohydrate(mol: Chem.Mol) -> bool:
     return False
 
 
+# --- Q18 ---------------------------------------------------------------
+# Cramer's Q18 is a nine-branch list, not a single test, which is why it
+# resisted every attempt to recover it from decision paths alone. The wording
+# is reproduced in the JRC's analysis of the scheme (EUR 24898 EN, 2011);
+# answering yes gives Class II where the branch would otherwise end at
+# Class I. Branches (a) to (h) are implemented here.
+#
+# Branch (i), "a substance in which the functional groups are all sterically
+# hindered", is deliberately left out. It is undefined in the paper, and
+# Phillips et al. (1987) deleted the phrase as ambiguous when they revised
+# the scheme. Implementing it would mean inventing a definition and then
+# measuring the invention, which is the failure mode this file exists to
+# avoid. The cost is known and stated in the README: BHT and its relatives
+# are (i) cases and stay in Class I.
+Q18_BRANCHES = (
+    # A diketone, so both carbonyls must carry carbon on the outside. The
+    # looser [CX3](=O)[CX3]=O also matches oxalic acid and the other vicinal
+    # diacids: they reach Class II anyway through the alpha-dicarbonyl rule,
+    # but naming branch (a) as the reason would be wrong, and the decision
+    # path is shown to the user.
+    ("a", "vicinal diketone, or a ketone attached to a terminal vinyl group",
+     "[$([#6][CX3](=[OX1])[CX3](=[OX1])[#6]),"
+     "$([CH2]=[CH][CX3](=[OX1])[#6]),"
+     "$([CH2]=[CH][CX4]([OX2])([OX2])[#6])]"),
+    ("b", "secondary alcohol, or its ester, attached to a terminal vinyl group",
+     "[$([CH2]=[CH][CX4H1]([#6])[OX2H]),"
+     "$([CH2]=[CH][CX4H1]([#6])[OX2][CX3]=[OX1])]"),
+    ("c", "allyl alcohol or its acetal, ketal or ester derivative",
+     "[$([CH2]=[CH][CH2][OX2H]),"
+     "$([CH2]=[CH][CH2][OX2][CX3]=[OX1]),"
+     "$([CH2]=[CH][CH2][OX2][CX4][OX2])]"),
+    ("d", "allyl mercaptan, sulphide, thioester or amine",
+     "[CH2]=[CH][CH2][SX2,NX3]"),
+    ("e", "acrolein, methacrolein or their acetals",
+     "[$([CH2]=[CX3][CX3H1]=[OX1]),"
+     "$([CH2]=[CX3][CX4H1]([OX2])[OX2])]"),
+    # The acid only. Cramer assigns acrylic acid to Class II but leaves the
+    # acrylate esters in Class I; the JRC report flags that as an
+    # inconsistency in the scheme, but it is the scheme's, not this file's.
+    ("f", "acrylic or methacrylic acid",
+     "[CH2]=[CX3][CX3](=[OX1])[OX2H,OX1-]"),
+    ("g", "acetylenic compound", "[CX2]#[CX2]"),
+)
+
+
+def _q18_large_ketone(mol: Chem.Mol) -> bool:
+    """Branch (h): an acyclic aliphatic ketone with a long chain either side.
+
+    "Four or more carbons on either side of the keto group" is read strictly,
+    as four on *both* sides. Bhatia et al. report that the looser reading is
+    where Toxtree's Q18 over-calls, and the strict one is what makes this a
+    question about large, poorly metabolised ketones rather than about every
+    methyl ketone. "No other functional groups" is taken as: carbon, hydrogen
+    and oxygen only, acyclic, and no oxygen function beyond the keto group
+    itself and at most one hydroxyl (the "ketoalcohol" the question allows).
+    """
+    if any(a.GetSymbol() not in ("C", "H", "O") for a in mol.GetAtoms()):
+        return False
+    if mol.GetRingInfo().NumRings():
+        return False
+    hydroxyls = len(mol.GetSubstructMatches(Chem.MolFromSmarts("[OX2H]")))
+    if hydroxyls > 1:
+        return False
+    ketones = mol.GetSubstructMatches(
+        Chem.MolFromSmarts("[#6][CX3](=[OX1])[#6]"))
+    if len(ketones) != 1:
+        return False
+    total_o = len(mol.GetSubstructMatches(Chem.MolFromSmarts("[OX1,OX2]")))
+    if total_o != 1 + hydroxyls:
+        return False
+
+    carbonyl = ketones[0][1]
+    for side in (ketones[0][0], ketones[0][3]):
+        seen, stack = {carbonyl}, [side]
+        carbons = 0
+        while stack:
+            idx = stack.pop()
+            if idx in seen:
+                continue
+            seen.add(idx)
+            atom = mol.GetAtomWithIdx(idx)
+            if atom.GetSymbol() == "C":
+                carbons += 1
+            stack.extend(n.GetIdx() for n in atom.GetNeighbors()
+                         if n.GetIdx() not in seen)
+        if carbons < 4:
+            return False
+    return True
+
+
+def q18_feature(mol: Chem.Mol) -> str | None:
+    """Which branch of Q18 the substance answers yes on, if any."""
+    for letter, description, smarts in Q18_BRANCHES:
+        if has(mol, smarts):
+            return f"({letter}) {description}"
+    if _q18_large_ketone(mol):
+        return ("(h) acyclic aliphatic ketone with four or more carbons on "
+                "both sides of the keto group")
+    return None
+
+
 def _oxygen_function_count(mol: Chem.Mol) -> int:
     """Number of readily metabolised oxygen functions."""
     return sum(count(mol, p) for p in
@@ -201,6 +302,21 @@ def classify(mol: Chem.Mol, props: dict | None = None) -> CramerResult:
     trace: list[str] = []
     elements = {a.GetSymbol() for a in mol.GetAtoms()}
     fired = [a.name for a, _ in screen(mol, CRAMER_HIGH_TOX)]
+
+    def done_q18(q: str, answer: str) -> CramerResult:
+        """A Class I verdict, unless Q18 intercepts it and makes it Class II.
+
+        Q18 is the gate the original tree puts last on the open-chain and
+        mononuclear branches, and it is where this implementation was losing
+        Class II compounds: both branches ended at Class I without asking it.
+        """
+        feature = q18_feature(mol)
+        if feature is None:
+            return done(CLASS_I, q, answer)
+        trace.append(f"{q} → {answer}")
+        return done(CLASS_II,
+                    "Q18. Is it one of the structures Cramer lists as "
+                    "carrying enhanced toxicity?", f"Yes — {feature}")
 
     def done(cls: str, q: str, answer: str, ood: bool = False,
              food_question: bool = True) -> CramerResult:
@@ -341,7 +457,7 @@ def classify(mol: Chem.Mol, props: dict | None = None) -> CramerResult:
         # glycol dibenzoate are both Class I. Only a substituent of concern,
         # or fusion to a second ring, moves the compound up.
         if _only_harmless_aryl_substituents(mol):
-            return done(CLASS_I, q, "Yes — only readily metabolised substituents")
+            return done_q18(q, "Yes — only readily metabolised substituents")
         return done(CLASS_III, q, "No — bears a substituent of concern")
     no(q)
 
@@ -394,7 +510,7 @@ def classify(mol: Chem.Mol, props: dict | None = None) -> CramerResult:
         elif alpha_dicarbonyl:
             no(q, "Yes, but it carries an alpha-dicarbonyl")
         elif mol.GetRingInfo().NumRings() <= 1:
-            return done(CLASS_I, q, "Yes")
+            return done_q18(q, "Yes")
         else:
             return done(CLASS_II, q, "Yes, but polycyclic")
     else:

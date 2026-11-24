@@ -102,10 +102,10 @@ salt and a mercurial):
 | | → I | → II | → III | n |
 | --- | --- | --- | --- | --- |
 | **Reference I** | **31** | 0 | 1 | 32 |
-| **Reference II** | 4 | **3** | 0 | 7 |
+| **Reference II** | 3 | **4** | 0 | 7 |
 | **Reference III** | 1 | 1 | **36** | 38 |
 
-**90.9% overall** (Class I 97%, Class II 43%, Class III 95%), with 6 under-calls
+**92.2% overall** (Class I 97%, Class II 57%, Class III 95%), with 5 under-calls
 and 1 over-call. `validate_cramer.py` prints every disagreement together with
 the decision path that caused it, so each can be judged rather than counted.
 
@@ -729,7 +729,7 @@ mislabelled since the examples were written.
 
 | Scheme | Reference data | Result |
 | --- | --- | --- |
-| Cramer classes | 77 of 83 (Cramer Appendix 1) | 90.9% concordance |
+| Cramer classes | 77 of 83 (Cramer Appendix 1) | 92.2% concordance |
 | Cramer classes | 108 (reference implementation) | 96.2% concordance — but see *Comparing against Toxtree*: that oracle is a historical Toxtree run, which current Toxtree reproduces 84/108 |
 | Verhaar scheme | 121 (Verhaar *et al.*) | 87.2% concordance |
 | Genotoxicity alerts | 672 of 691 (ISSCAN Ames) | 90% sensitivity, 59% specificity |
@@ -868,7 +868,7 @@ while Class I rose to 97%/99% and Class III to 95%/100%.
 **On self-confirmation:** the Q1 membership was identified from the recorded
 paths, which include both validation sets, so that part is partly circular. The
 effect is measurable and small. On the Appendix 1 set **no compound at all** is
-decided by that list — its 90.9% is entirely structural. On the food set 23 of
+decided by that list — its 92.2% is entirely structural. On the food set 23 of
 106 are; excluding them the remaining 83 score **95.2%**, against 96.2% overall.
 The structural rules carry the result, not the membership.
 
@@ -906,8 +906,9 @@ It is the terminal Class I/II gate on the branches this implementation exits
 early, which is precisely where the Class II accuracy is being lost. So the
 question is pivotal, and worth real effort.
 
-**It has not been possible to recover what it asks, and the attempt is worth
-recording because two plausible answers were tested and both failed.**
+**It could not be recovered from the decision paths, and the attempt is worth
+recording because two plausible answers were tested and both failed before
+the question's own text settled it.**
 
 *It is not a list lookup.* Since answering yes yields Class II, the obvious
 guess was the food-list membership that Q22 already performs. Direct test
@@ -985,8 +986,47 @@ has no terminal vinyl group and so satisfies neither (b) nor (h).
 So the oracle cannot adjudicate this one. It scores movement toward or away
 from Toxtree, and on Q18 Toxtree is the thing that is wrong — reproducing
 its behaviour would raise the agreement figure and make the implementation
-worse. Any Q18 work has to be scored against the reference classes
-themselves, with the comparison used only to find candidates.
+worse. Q18 was therefore scored against the reference classes themselves,
+with the comparison used only to find candidates.
+
+### Implementing it
+
+Branches (a) to (h) are implemented; (i) is not, for the reason above. On
+Appendix 1 that takes **Class II from 43% to 57%** and the set overall from
+90.9% to **92.2%**, with Class I and Class III unchanged and the food set
+unchanged at 96.2% — one compound gained, none lost. The gate fires on three
+compounds across both reference sets and is right on all three.
+
+A modest gain, and the ceiling is visible: of the three Appendix 1 compounds
+that turn on Q18, only allyl heptanoate is recovered. BHT is a branch (i)
+case and stays wrong by choice. 2-heptanone stays wrong because branch (h) is
+read strictly here — four or more carbons on *both* sides of the keto group,
+which 2-heptanone fails with one — and the loose reading that would catch it
+is exactly what Bhatia *et al.* identify as the source of Toxtree's
+over-calling. Buying one compound by adopting a reading reported to be wrong
+is not a trade worth making.
+
+Two things fell out of implementing it that are worth more than the
+percentage point.
+
+**Branch (e) names acrolein, and acrolein was pinned wrongly — again.** This
+file already tells the story of acrolein being pinned to Class III on an
+assumption and corrected to Class I by Appendix 1, on the grounds that
+trans-2-hexenal and cinnamaldehyde are "the same functional class". That
+generalisation was itself the error. Branch (e) names *acrolein, a
+methacrolein or their acetals* explicitly, and requires the terminal vinyl
+group that only those have, so hexenal and cinnamaldehyde never matched it
+and remain Class I correctly. Acrolein is Class II. Pinned wrongly twice, in
+opposite directions, both times by reasoning from a neighbour instead of
+reading the scheme.
+
+**The oracle had a blind spot and the first Q18 run walked straight into
+it.** The fixture covered foodmol for Cramer but not Appendix 1, so the
+verdict that moved was invisible to it: 2624 verdicts, all reported
+unchanged, while the change was real. `tools/build_oracle.py` now covers both
+Cramer sets. A regression fixture that does not cover the set a change lands
+in is not watching that change, which is obvious in hindsight and was not
+obvious when the fixture was built.
 
 ## Licence
 

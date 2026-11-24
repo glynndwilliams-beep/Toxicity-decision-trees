@@ -49,13 +49,18 @@ RDLogger.DisableLog("rdApp.*")
 # runs semi-empirical QM descriptors per molecule -- so runs are grouped by
 # (module, file) and each scheme reads its own field out of the one output.
 SOURCES = {
-    "cramer": "foodmol.sdf",
-    "verhaar": "Verhaar2000.sdf",
-    "genotox": "iss2_rid.sdf",
-    "nongenotox": "iss2_rid.sdf",
-    "sensitisation": "LLNA_3D.sdf",
-    "irritation": "LLNA_3D.sdf",
-    "eye": "LLNA_3D.sdf",
+    # Cramer is scored over both reference sets. Covering only foodmol left a
+    # real blind spot: implementing Q18 moved allyl heptanoate from Class I to
+    # Class II, which is an Appendix 1 compound, and the oracle reported every
+    # verdict unchanged. A regression fixture that does not cover the set a
+    # change lands in is not watching that change.
+    "cramer": ["foodmol.sdf", "appendix1.sdf"],
+    "verhaar": ["Verhaar2000.sdf"],
+    "genotox": ["iss2_rid.sdf"],
+    "nongenotox": ["iss2_rid.sdf"],
+    "sensitisation": ["LLNA_3D.sdf"],
+    "irritation": ["LLNA_3D.sdf"],
+    "eye": ["LLNA_3D.sdf"],
 }
 
 
@@ -88,8 +93,9 @@ def main(argv: list[str]) -> int:
     print(f"Toxtree : {jar}\nJava    : {java}\nOutput  : {out}\n")
 
     groups: dict[tuple[str, str], list[str]] = defaultdict(list)
-    for scheme, filename in SOURCES.items():
-        groups[(SCHEMES[scheme]["module"], filename)].append(scheme)
+    for scheme, filenames in SOURCES.items():
+        for filename in filenames:
+            groups[(SCHEMES[scheme]["module"], filename)].append(scheme)
 
     rows, skipped = [], defaultdict(int)
     for (module, filename), schemes in groups.items():
