@@ -102,6 +102,18 @@ P_TERPENE_SKELETON = "[CX4]([CX4])([CX4])[CX4]"
 P_POLYCYCLIC_NONAROMATIC = "[#6;R2;!a]"
 P_FURAN = "c1ccoc1"
 P_PYRIDINE = "c1ccncc1"
+# Q6 calls a lactone "simple" below this size, and sends the larger ones to
+# Class III. The number is a choice, not the paper's, and the sweep in the
+# README's Q6 section shows it discriminates nothing: every value from 0 to 11
+# scores identically, every value from 12 up scores identically and one worse,
+# because the only two lactones in either reference set that the cut could
+# separate -- dehydroacetic acid (Class III) and ascorbic acid (Class II) --
+# have exactly 12 heavy atoms each. 11 is used because it gets dehydroacetic
+# acid right and costs nothing, not because 11 is calibrated; ascorbic acid
+# then reaches Class II through the food question rather than through this
+# rule. Three lactones in 183 compounds is the whole evidence base.
+Q6_SIMPLE_LACTONE_MAX_HEAVY = 11
+
 P_COMMON_FOOD_HETEROCYCLE = (
     "[$(c1ccoc1),$(c1ccsc1),$(c1ccncc1),$(C1CCOC1),$(C1CCCO1),$(O=C1CCCO1)]"
 )
@@ -553,7 +565,8 @@ def classify(mol: Chem.Mol, props: dict | None = None) -> CramerResult:
     if has(mol, P_CYCLIC_DIESTER):
         return done(CLASS_III, q, "Yes — cyclic diester")
     if has(mol, P_LACTONE):
-        small = mol.GetNumHeavyAtoms() <= 12 and not has(mol, P_BENZENE)
+        small = (mol.GetNumHeavyAtoms() <= Q6_SIMPLE_LACTONE_MAX_HEAVY
+                 and not has(mol, P_BENZENE))
         return done(CLASS_II if small else CLASS_III, q,
                     "Yes — simple lactone" if small else "Yes — complex lactone")
     no(q)

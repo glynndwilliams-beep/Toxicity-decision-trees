@@ -10,6 +10,7 @@ import pathlib
 
 from toxtree import assess, parse_structure
 from toxtree.alerts import validate_library
+from toxtree import cramer
 from toxtree.cramer import CLASS_I, CLASS_II, CLASS_III, q18_feature
 from toxtree.examples import EXAMPLES
 
@@ -328,6 +329,40 @@ def test_q18_structural_features():
     assert cls("CCCCCOC(=O)CCC") == CLASS_I
     assert cls("Cc1cc(C(C)(C)C)c(O)c(C(C)(C)C)c1") == CLASS_II   # BHT
     assert cls("Oc1ccccc1") == CLASS_I
+
+
+def test_q6_and_q9_swept_choices():
+    """The two questions whose detail this file invented rather than read.
+
+    Q6's size cut and Q9's innocuous-substituent list were both swept against
+    both reference sets, one choice at a time; the README records every
+    reading. These assertions pin what the sweep settled, and say which ones
+    it could not reach.
+    """
+    def cls(smiles):
+        rec = parse_structure(smiles)
+        assert rec.ok, smiles
+        return assess(rec, {"cramer"}).cramer.cramer_class
+
+    # Q6. The cut discriminates nothing -- the two lactones it could separate
+    # have the same heavy-atom count and different reference classes -- so it
+    # is set where it costs nothing, and ascorbic acid reaches Class II
+    # through the food question rather than through the lactone rule.
+    assert cramer.Q6_SIMPLE_LACTONE_MAX_HEAVY == 11
+    assert cls("OC[C@H](O)[C@H]1OC(=O)C(O)=C1O") == CLASS_II   # ascorbic acid
+
+    # Q9. Every entry in the innocuous list is load-bearing: each of these
+    # would move if its entry were removed, which the README quantifies.
+    assert cls("CCCOC(=O)c1ccc(O)cc1") == CLASS_I     # propyl paraben
+    assert cls("O=Cc1ccccc1") == CLASS_I              # benzaldehyde
+    assert cls("OC(=O)c1ccccc1") == CLASS_I           # benzoic acid
+    assert cls("O=CC=Cc1ccccc1") == CLASS_I           # cinnamaldehyde
+    # ...and an aromatic halogen is not innocuous. Admitting it was measured
+    # and drops five Class III compounds to Class I.
+    assert cls("Clc1ccccc1") == CLASS_III             # chlorobenzene
+    # The oxidised terminus is what separates these two, confirmed by sweep:
+    # admitting any alkenyl substituent moves anethole from III to I.
+    assert cls("CC=Cc1ccc(OC)cc1") == CLASS_III       # anethole
 
 
 def test_against_the_toxtree_oracle():

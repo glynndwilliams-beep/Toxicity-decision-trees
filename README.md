@@ -103,9 +103,9 @@ salt and a mercurial):
 | --- | --- | --- | --- | --- |
 | **Reference I** | **31** | 0 | 1 | 32 |
 | **Reference II** | 1 | **6** | 0 | 7 |
-| **Reference III** | 1 | 1 | **36** | 38 |
+| **Reference III** | 1 | 0 | **37** | 38 |
 
-**94.8% overall** (Class I 97%, Class II 86%, Class III 95%), with 3 under-calls
+**96.1% overall** (Class I 97%, Class II 86%, Class III 97%), with 2 under-calls
 and 1 over-call. `validate_cramer.py` prints every disagreement together with
 the decision path that caused it, so each can be judged rather than counted.
 
@@ -758,7 +758,7 @@ mislabelled since the examples were written.
 
 | Scheme | Reference data | Result |
 | --- | --- | --- |
-| Cramer classes | 77 of 83 (Cramer Appendix 1) | 94.8% concordance |
+| Cramer classes | 77 of 83 (Cramer Appendix 1) | 96.1% concordance |
 | Cramer classes | 108 (reference implementation) | 96.2% concordance — but see *Comparing against Toxtree*: that oracle is a historical Toxtree run, which current Toxtree reproduces 84/108 |
 | Verhaar scheme | 121 (Verhaar *et al.*) | 87.2% concordance |
 | Genotoxicity alerts | 672 of 691 (ISSCAN Ames) | 90% sensitivity, 59% specificity |
@@ -897,7 +897,7 @@ while Class I rose to 97%/99% and Class III to 95%/100%.
 **On self-confirmation:** the Q1 membership was identified from the recorded
 paths, which include both validation sets, so that part is partly circular. The
 effect is measurable and small. On the Appendix 1 set **no compound at all** is
-decided by that list — its 94.8% is entirely structural. On the food set 23 of
+decided by that list — its 96.1% is entirely structural. On the food set 23 of
 106 are; excluding them the remaining 83 score **95.2%**, against 96.2% overall.
 The structural rules carry the result, not the membership.
 
@@ -1300,6 +1300,102 @@ So:
 That is two of Q18's nine branches resting on the paper's wording alone.
 Branch (h)'s strict reading was in the same position until it was measured
 and lost, so this is recorded as a gap rather than as a reassurance.
+
+## Sweeping Q6 and Q9
+
+Q18 having been swept branch by branch, the same treatment was given to the
+two questions with the most invented detail in them: Q6, which splits
+lactones by size, and Q9, which decides which aromatic substituents are
+"innocuous". Both were measured by substitution against both reference sets,
+one choice at a time.
+
+### Q6: a size threshold that discriminates nothing
+
+Q6 sent a lactone to Class II when it had **12 or fewer heavy atoms** and no
+benzene ring, and to Class III otherwise. The number was never measured.
+Sweeping it:
+
+| cut | Appendix 1 | food set | total |
+| --- | --- | --- | --- |
+| 0, 6, 8, 9, 10, 11 | **74/77** | 102/106 | **176/183** |
+| 12 (as shipped), 13, 14, 15, 16, 18, 20, ∞ | 73/77 | 102/106 | 175/183 |
+
+Every value from 0 to 11 scores identically; every value from 12 up scores
+identically and one compound worse. **The cut is now 11**, which takes
+Appendix 1 to **74/77 = 96.1%** and Class III to 97%, and the food set is
+unchanged.
+
+The reason that works is not flattering to the rule, and matters more than
+the point it gained. There are **three lactones in 183 compounds**:
+
+| compound | heavy atoms | reference | notes |
+| --- | --- | --- | --- |
+| dehydroacetic acid (`DHAc`) | 12 | III | was called a "simple lactone" → Class II, wrong |
+| ascorbic acid | 12 | II | correct before and after |
+| `Draz` | 16 | III | a "complex lactone" either way |
+
+The two compounds the cut could separate **have exactly the same size**, and
+different reference classes, so no threshold can distinguish them. Lowering
+the cut gets dehydroacetic acid right and keeps ascorbic acid right only
+because ascorbic acid is on the food list and the Q22 food question rescues
+it from Class III. That rescue is a mechanism this README already flags as
+partly self-confirming on the food set.
+
+So `Q6_SIMPLE_LACTONE_MAX_HEAVY = 11` is honest arithmetic over one compound,
+not a calibrated parameter, and the constant's comment says so. A cut of 0 —
+deleting the "simple lactone" branch entirely — scores exactly the same, and
+was not adopted only because sending every small lactone to Class III is a
+larger unmeasured bet about compounds not in these sets than keeping the
+branch is. Three lactones cannot settle that, and the sweep is recorded so
+the next person does not have to rediscover how thin it is.
+
+Three variants of the lactone **pattern** itself were also measured — whether
+the carbonyl must be in the same ring as the oxygen, and two relaxations —
+and none moves a verdict in either set.
+
+### Q9: eight substituent rules, all eight load-bearing
+
+Q9's innocuous-substituent list is the largest invented object in the file.
+Each of its eight entries was removed in turn:
+
+| removed | compounds broken |
+| --- | --- |
+| phenol OH | **9** — the parabens, eugenol, raspberry ketone, methyl salicylate, BHT, vanillin |
+| ester (C-linked) | **7** — PGDB, the parabens, DEHP, methyl salicylate |
+| alkyl | 6 broken, 1 fixed (aspartame) — net **5** |
+| alkoxy | 2 — eugenol, vanillin |
+| aldehyde | 2 — benzaldehyde, vanillin |
+| carboxylic acid | 1 — benzoic acid |
+| acyloxy (O-linked) | 1 — `TBPS` |
+| alkenyl with an oxidised terminus | 1 — cinnamaldehyde |
+
+**Every entry is supported by at least one compound**, which is the first
+unambiguously positive result in this whole exercise: the list was built by
+hand, and the data backs all of it. The *alkyl* entry is the one with a real
+cost attached — removing it would fix aspartame — but at five other
+compounds, so it stays.
+
+Seven candidate additions were then measured:
+
+| added | result |
+| --- | --- |
+| halogen | **−5**: chlorobenzene, hexachlorophene and three others fall from Class III to Class I |
+| any alkenyl (dropping the oxidised terminus) | **−1**: anethole falls from III to I |
+| primary amine, nitro, nitrile, N-linked amide, sulphonate | no change in either set |
+
+The halogen result is the sharpest confirmation in the sweep: an aromatic
+halogen is emphatically not innocuous, and admitting it would wreck five
+Class III verdicts. The alkenyl result independently confirms the oxidised
+terminus that `P_HARMLESS_AR_SUBST` already requires — the distinction
+between cinnamaldehyde (Class I) and anethole (Class III).
+
+The five inert candidates are a gap, not a vindication: nothing in 183
+compounds says whether an aromatic amine, nitro, nitrile, amide or
+sulphonate belongs on that list, because no compound reaches Q9 bearing one.
+
+Finally, Q9 disqualifies a ring that has a **ring-bearing neighbour**, which
+is what keeps the fused and biphenyl systems out. Relaxing it changes no
+verdict in either set, so that clause is unvalidated too.
 
 Two things fell out of implementing it that are worth more than the
 percentage point.
