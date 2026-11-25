@@ -365,6 +365,43 @@ def test_q6_and_q9_swept_choices():
     assert cls("CC=Cc1ccc(OC)cc1") == CLASS_III       # anethole
 
 
+def test_q8_and_q12_swept_choices():
+    """Q12's thresholds are calibrated; Q8's list is not. Both were swept.
+
+    Q12's four choices each sit at an optimum the data constrains from both
+    sides, so the assertions below pin the compounds that hold them there.
+    Q8's size cut, food-heterocycle list and detection patterns move no
+    verdict under any substitution tried, so there is nothing to pin beyond
+    the one compound its Class II branch touches -- and that one would be
+    classified correctly without the branch at all.
+    """
+    def cls(smiles):
+        rec = parse_structure(smiles)
+        assert rec.ok, smiles
+        return assess(rec, {"cramer"}).cramer.cramer_class
+
+    assert cramer.Q12_MAX_OXYGEN_FUNCTIONS == 2
+    assert cramer.Q12_MAX_RINGS == 1
+
+    # The compounds that hold the oxygen allowance at 2: one or two functions
+    # read as readily metabolised, three do not.
+    assert cls("OCC(O)C") == CLASS_I                  # propylene glycol
+    assert cls("CC(O)CCO") == CLASS_I                 # butylene glycol
+    assert cls("OC(=O)CC(O)(CC(=O)O)C(=O)O") == CLASS_II   # citric acid
+    assert cls("OCC(O)C(O)C(O)C(O)CO") == CLASS_II    # sorbitol
+    # ...and the alpha-dicarbonyl disqualifier, which removing breaks.
+    assert cls("O=C(O)C(=O)O") == CLASS_II            # oxalic acid
+
+    # The compounds that hold the ring split at 1: monocyclic below,
+    # bicyclic above.
+    assert cls("CC(=C)C1CCC(C)=CC1") == CLASS_I       # limonene
+
+    # Q8. Niacin is the only compound either reference set routes through the
+    # "simple heterocycle common in food" branch, and the food question would
+    # return it to Class II even if that branch did not exist.
+    assert cls("OC(=O)c1cccnc1") == CLASS_II          # niacin
+
+
 def test_against_the_toxtree_oracle():
     """Every verdict is diffed against a recorded baseline, not thirty pins.
 

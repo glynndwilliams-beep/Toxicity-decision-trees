@@ -1397,6 +1397,97 @@ Finally, Q9 disqualifies a ring that has a **ring-bearing neighbour**, which
 is what keeps the fused and biphenyl systems out. Relaxing it changes no
 verdict in either set, so that clause is unvalidated too.
 
+## Sweeping Q8 and Q12
+
+The same treatment for the two remaining questions with invented numbers in
+them. They came out at opposite ends: **Q12 is the best-calibrated question
+in the file, and Q8 is the least.**
+
+### Q12: every knob already at an optimum
+
+Q12 asks whether a compound is a simple aliphatic whose only functions are
+readily metabolised oxygen functions. Four choices were swept.
+
+**The oxygen-function allowance** (how many such functions still read as
+readily metabolised):
+
+| allowance | Appendix 1 | food set | net |
+| --- | --- | --- | --- |
+| 0 | 68/77 | 75/106 | **−33** |
+| 1 | 70/77 | 102/106 | −4 |
+| **2 (shipped)**, 3 | **74/77** | **102/106** | — |
+| 4, 5 | 74/77 | 101/106 | −1 (citric acid) |
+| ∞ | 74/77 | 99/106 | −3 (citric acid, mannitol, sorbitol) |
+
+Constrained from *both* sides by different compounds: dropping to 1 breaks
+propylene glycol, butylene glycol, acetoin, an unsaturated diacid and malonic
+acid; raising to 4 lets citric acid through. 2 is the lower edge of the
+optimum and is where it already sat.
+
+**The ring-count split** (how many rings still count as simple):
+
+| max rings | result |
+| --- | --- |
+| 0 | −2: limonene and retinol |
+| **1 (shipped)** | best |
+| 2, 3, ∞ | −4: α-carotene, β-carotene, cryptoxanthin, lutein |
+
+Again constrained from both sides, and again by distinct compounds — the
+monocyclic terpenes below, the bicyclic carotenoids above.
+
+**What counts as an oxygen function** turned out to vindicate an apparent
+inconsistency. The question names *ester* and *ether*, but
+`_oxygen_function_count` does not count them, which looks like an oversight:
+
+| counted set | result |
+| --- | --- |
+| **shipped**: alcohol, acid, ketone, aldehyde | best |
+| plus ester | −1 (`TBACi`) |
+| plus ether | −1 (`TBACi`) |
+| plus both | −1 (`TBACi`) |
+| alcohols only | −1 (citric acid) |
+
+So the omission is right and the data says so. **The α-dicarbonyl
+disqualifier** is load-bearing too: removing it breaks oxalic acid.
+
+Four choices, four already optimal, each held in place by a named compound.
+Nothing changed here, and for once that is a measurement rather than a
+default.
+
+### Q8: a question almost nothing in the data touches
+
+Q8 sends heterocycles to Class III, except that one on a
+common-in-food structural list and under a size cut goes to Class II. Almost
+none of that detail is supported.
+
+| swept | result |
+| --- | --- |
+| size cut 0, 6, 8, 10, 11, **12 (shipped)**, 13, 14 | all identical |
+| size cut 16, 20, ∞ | −1 (`PCF` falls from III to II) |
+| removing furan, thiophene, pyridine, THF, oxolane or butyrolactone from the list | **no change, any of them** |
+| adding pyrazine, pyrrole, imidazole, thiazole, piperidine, pyran or indole | **no change, any of them** |
+| detection: excluding epoxides; ring N+S only; **ring N only** | **no change** |
+
+A cut of 0 — deleting the Class II branch — scores exactly the same as 12.
+The reason is that **the branch decides exactly one compound in 183**:
+niacin, which matches via pyridine. And niacin does not need it: without the
+branch it reaches Class III and the Q22 food question returns it to Class
+II. The only thing the size cut does is keep `PCF` out of a branch that
+otherwise does no work.
+
+The branch is **not logically redundant** — it fires on structure, while the
+food question fires on list membership, so a furan-like compound absent from
+the food list would be Class II with the branch and Class III without it.
+That is why it stays. But on this data it is redundant, its list is
+unfalsifiable in both directions, and even the heteroaromatic/saturated
+detection patterns could be narrowed to ring nitrogen alone without moving a
+verdict, because sugars are taken by the carbohydrate rule and lactones by Q6
+before Q8 ever sees them.
+
+Set against Q9, where all eight substituent entries were load-bearing, Q8 is
+the opposite result from the same method: a hand-built list of six entries,
+not one of which any compound here depends on.
+
 Two things fell out of implementing it that are worth more than the
 percentage point.
 

@@ -114,6 +114,17 @@ P_PYRIDINE = "c1ccncc1"
 # rule. Three lactones in 183 compounds is the whole evidence base.
 Q6_SIMPLE_LACTONE_MAX_HEAVY = 11
 
+# Q8 calls a heterocycle on the common-in-food list "simple" below this size.
+# Swept in the README's Q8 section.
+Q8_SIMPLE_HETEROCYCLE_MAX_HEAVY = 12
+
+# Q12 reads a chain as readily metabolised up to this many oxygen functions,
+# and treats it as simple while it has no more rings than this. Both are swept
+# in the README's Q12 section, and both sit at an optimum the data constrains
+# from each side.
+Q12_MAX_OXYGEN_FUNCTIONS = 2
+Q12_MAX_RINGS = 1
+
 P_COMMON_FOOD_HETEROCYCLE = (
     "[$(c1ccoc1),$(c1ccsc1),$(c1ccncc1),$(C1CCOC1),$(C1CCCO1),$(O=C1CCCO1)]"
 )
@@ -583,7 +594,8 @@ def classify(mol: Chem.Mol, props: dict | None = None) -> CramerResult:
     q = "Q8. Is it a heterocyclic compound?"
     heterocyclic = has(mol, P_HETEROAROMATIC) or has(mol, P_HETEROCYCLE_SAT)
     if heterocyclic:
-        if has(mol, P_COMMON_FOOD_HETEROCYCLE) and mol.GetNumHeavyAtoms() <= 12:
+        if (has(mol, P_COMMON_FOOD_HETEROCYCLE)
+                and mol.GetNumHeavyAtoms() <= Q8_SIMPLE_HETEROCYCLE_MAX_HEAVY):
             return done(CLASS_II, q, "Yes — simple heterocycle common in food")
         return done(CLASS_III, q, "Yes — other heterocycle")
     no(q)
@@ -644,11 +656,11 @@ def classify(mol: Chem.Mol, props: dict | None = None) -> CramerResult:
         # acid, oxalic acid and diacetyl part company with them.
         oxygens = _oxygen_function_count(mol)
         alpha_dicarbonyl = has(mol, P_ALPHA_DICARBONYL)
-        if oxygens >= 3:
+        if oxygens >= Q12_MAX_OXYGEN_FUNCTIONS + 1:
             no(q, f"Yes, but it carries {oxygens} oxygen functions")
         elif alpha_dicarbonyl:
             no(q, "Yes, but it carries an alpha-dicarbonyl")
-        elif mol.GetRingInfo().NumRings() <= 1:
+        elif mol.GetRingInfo().NumRings() <= Q12_MAX_RINGS:
             return done_q18(q, "Yes")
         else:
             return done(CLASS_II, q, "Yes, but polycyclic")
