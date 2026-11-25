@@ -402,6 +402,33 @@ def test_q8_and_q12_swept_choices():
     assert cls("OC(=O)c1cccnc1") == CLASS_II          # niacin
 
 
+def test_q13_and_the_default_verdict():
+    """The tail of the tree, where only eight of 183 compounds are decided.
+
+    Q13's Class II branch has no clients at all: its nitrogen pattern can be
+    replaced by its own opposite without moving a verdict, so there is
+    nothing here to pin but the two compounds it does route to Class III.
+
+    The Q14 default is pinned deliberately. Class II and Class III score
+    identically on both reference sets, because every compound that reaches
+    the default is food-listed and the food question returns it to Class II
+    either way. The constant below is therefore NOT measured -- it is the
+    less protective of two options the data cannot separate, and this
+    assertion exists so that changing it is a deliberate act.
+    """
+    def cls(smiles):
+        rec = parse_structure(smiles)
+        assert rec.ok, smiles
+        return assess(rec, {"cramer"}).cramer.cramer_class
+
+    assert cramer.Q14_DEFAULT_CLASS == CLASS_II      # unmeasured, see above
+    assert cramer.Q13_SIMPLE_AMIDE_MAX_HEAVY == 12   # any value 0-14 scores the same
+
+    # The compounds that reach the default, all of them food-listed.
+    assert cls("CC(=O)C(C)=O") == CLASS_II                 # diacetyl
+    assert cls("OC(=O)CC(O)(CC(=O)O)C(=O)O") == CLASS_II   # citric acid
+
+
 def test_against_the_toxtree_oracle():
     """Every verdict is diffed against a recorded baseline, not thirty pins.
 

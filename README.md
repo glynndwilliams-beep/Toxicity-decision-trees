@@ -1488,6 +1488,83 @@ Set against Q9, where all eight substituent entries were load-bearing, Q8 is
 the opposite result from the same method: a hand-built list of six entries,
 not one of which any compound here depends on.
 
+## Sweeping Q13, and what the tail of the tree revealed
+
+Q13 is the catch-all for nitrogen compounds, and Q14 is the default when
+nothing else resolved. Only **eight compounds in 183 are decided there**, all
+eight currently correct, which caps what any sweep of them can show.
+
+### Q13: a branch with no clients
+
+Q13 sends nitrogen compounds to Class III, except that a "simple aliphatic
+amide" under a size cut goes to Class II.
+
+| swept | result |
+| --- | --- |
+| cut 0, 6, 10, **12 (shipped)**, 14 | all identical |
+| cut 20, ∞ | −1 (`NEC` falls from III to II) |
+| any amide / primary amide only / **amide or amine** / **amine only** / amide but not N-aryl | **no change, any of them** |
+
+The Class II branch **decides no compound at all**: Q13's only two clients,
+`NEC` and `Dod`, both take the "other nitrogen function" path to Class III.
+Which means the nitrogen pattern can be replaced by its own opposite —
+*amine only*, excluding every amide — without moving a verdict. The cut's
+only function is to keep `NEC` out of a branch that otherwise does nothing.
+
+This is the same shape as Q8, and it answers the question raised when the
+sweep of it began: yes, a catch-all question has the low power that Q8 had.
+Q13 also carries the same apparent inconsistency Q12 did — its text says
+"amine **or** amide" while only amides get the exception — but where Q12's
+asymmetry was vindicated by a compound, Q13's is simply untested.
+
+### Q14: the default verdict is unconstrained
+
+The tree's default is Class II. Sweeping it:
+
+| default | Appendix 1 | food set | net |
+| --- | --- | --- | --- |
+| Class I | 73/77 | 97/106 | **−6** |
+| **Class II (shipped)** | 74/77 | 102/106 | — |
+| **Class III** | 74/77 | 102/106 | **identical** |
+
+Class I is clearly wrong. But **Class II and Class III score exactly the
+same**, and the reason is that all six compounds reaching the default —
+diacetyl (twice, in both sets), citric acid, mannitol, sorbitol, oxalic acid
+— are on the food list, so a Class III default is returned to Class II by
+the Q22 food question. Every single one.
+
+So the tree's **most consequential choice for unseen compounds is the one
+these 183 cannot judge at all.** It is not a cosmetic difference: Class II
+carries a TTC of 540 µg/person/day and Class III 90 µg, so defaulting to
+Class II is the *less* protective option, and nothing in the reference data
+prefers it. The code is left at Class II because changing a default on
+precautionary instinct, with no measurement behind it, is the move this file
+exists to avoid — but it is flagged here rather than left implicit, because
+the argument for Class III is a safety argument and deserves a decision
+rather than a silence.
+
+### What three sweeps together showed about the food question
+
+The same mechanism turned up three times, and only becomes visible once the
+sweeps are read side by side. The **Q6 lactone cut**, the **Q8 Class II
+heterocycle branch** and the **Q14 default** are all unconstrained — or
+constrained only by luck — because the Q22 food question absorbs the
+difference: ascorbic acid, niacin and all six Q14 compounds are food-listed
+and get returned to Class II whatever the structural rule decided.
+
+This README already warned that food-list membership is partly
+self-confirming on the food set. The sweeps show something more specific:
+**three structural rules appear to be doing work that the food lookup is
+actually doing**, and the appearance survives because the only compounds that
+exercise those rules are also on the list. A reference set of non-food
+compounds would test them; these two sets structurally cannot.
+
+One incidental observation from tracing this: the food list matches with
+stereochemistry stripped — documented in `reflists.canonical` and
+deliberate — so sorbitol is reported as having matched `MANNITOL`. Both are
+Class II, so no verdict depends on it, but the name in a trace can be a
+stereoisomer of the compound that was actually asked about.
+
 Two things fell out of implementing it that are worth more than the
 percentage point.
 

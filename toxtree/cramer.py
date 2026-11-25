@@ -125,6 +125,12 @@ Q8_SIMPLE_HETEROCYCLE_MAX_HEAVY = 12
 Q12_MAX_OXYGEN_FUNCTIONS = 2
 Q12_MAX_RINGS = 1
 
+# Q13 calls a nitrogen compound a "simple aliphatic amide" below this size.
+# Q14 is the tree's default when nothing else resolved. Both swept in the
+# README's Q13 section.
+Q13_SIMPLE_AMIDE_MAX_HEAVY = 12
+Q14_DEFAULT_CLASS = CLASS_II
+
 P_COMMON_FOOD_HETEROCYCLE = (
     "[$(c1ccoc1),$(c1ccsc1),$(c1ccncc1),$(C1CCOC1),$(C1CCCO1),$(O=C1CCCO1)]"
 )
@@ -670,13 +676,14 @@ def classify(mol: Chem.Mol, props: dict | None = None) -> CramerResult:
     # Q13 — nitrogen-containing aliphatics and everything else
     q = "Q13. Does it contain nitrogen in an aliphatic amine or amide function?"
     if "N" in elements:
-        if has(mol, P_AMIDE) and mol.GetNumHeavyAtoms() <= 12:
+        if (has(mol, P_AMIDE)
+                and mol.GetNumHeavyAtoms() <= Q13_SIMPLE_AMIDE_MAX_HEAVY):
             return done(CLASS_II, q, "Yes — simple aliphatic amide")
         return done(CLASS_III, q, "Yes — other nitrogen function")
     no(q)
 
     q = "Q14. Default — no positive presumption of safety was established."
-    return done(CLASS_II, q, "Default")
+    return done(Q14_DEFAULT_CLASS, q, "Default")
 
 
 def _only_harmless_aryl_substituents(mol: Chem.Mol) -> bool:
