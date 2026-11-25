@@ -1537,11 +1537,17 @@ So the tree's **most consequential choice for unseen compounds is the one
 these 183 cannot judge at all.** It is not a cosmetic difference: Class II
 carries a TTC of 540 µg/person/day and Class III 90 µg, so defaulting to
 Class II is the *less* protective option, and nothing in the reference data
-prefers it. The code is left at Class II because changing a default on
-precautionary instinct, with no measurement behind it, is the move this file
-exists to avoid — but it is flagged here rather than left implicit, because
-the argument for Class III is a safety argument and deserves a decision
-rather than a silence.
+prefers it.
+
+**The default stays at Class II, and that is now a reviewed decision rather
+than an inherited one.** It was put explicitly as a choice — switch to the
+more protective Class III on precautionary grounds, or keep Class II — and
+keeping it was chosen. Changing a default on precautionary instinct, with no
+measurement behind it, is the move this file exists to avoid; but a reader
+who finds an unmeasured constant is entitled to know whether anyone looked
+at it, and someone did. What would justify revisiting it is evidence, which
+here means a reference compound that reaches Q14 and is not on the food
+list.
 
 ### What three sweeps together showed about the food question
 

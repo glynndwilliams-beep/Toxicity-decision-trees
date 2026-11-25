@@ -413,8 +413,12 @@ def test_q13_and_the_default_verdict():
     identically on both reference sets, because every compound that reaches
     the default is food-listed and the food question returns it to Class II
     either way. The constant below is therefore NOT measured -- it is the
-    less protective of two options the data cannot separate, and this
-    assertion exists so that changing it is a deliberate act.
+    less protective of two options the data cannot separate.
+
+    Class II was reviewed as a choice against switching to Class III on
+    precautionary grounds, and kept. This assertion holds it there so that
+    changing it is a deliberate act; what would justify changing it is a
+    reference compound that reaches Q14 and is not on the food list.
     """
     def cls(smiles):
         rec = parse_structure(smiles)
